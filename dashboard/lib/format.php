@@ -77,6 +77,101 @@ function normalize_amount_raw(mixed $v): string
     return $s;
 }
 
+/**
+ * Comparaison de deux entiers décimaux positifs (chaînes). Retour &lt;0, 0, &gt;0.
+ */
+function monitor_cmp_digit_strings(string $a, string $b): int
+{
+    $a = ltrim($a, '0') ?: '0';
+    $b = ltrim($b, '0') ?: '0';
+    $la = strlen($a);
+    $lb = strlen($b);
+    if ($la !== $lb) {
+        return $la <=> $lb;
+    }
+
+    return strcmp($a, $b);
+}
+
+/** Somme de deux entiers positifs en notation décimale (sans float — évite 1e+25 → affichage 0). */
+function monitor_digit_strings_add(string $a, string $b): string
+{
+    $a = ltrim($a, '0') ?: '0';
+    $b = ltrim($b, '0') ?: '0';
+    if ($a === '0') {
+        return $b;
+    }
+    if ($b === '0') {
+        return $a;
+    }
+    $i = strlen($a) - 1;
+    $j = strlen($b) - 1;
+    $carry = 0;
+    $out = '';
+    while ($i >= 0 || $j >= 0 || $carry > 0) {
+        $da = $i >= 0 ? (int) $a[$i] : 0;
+        $db = $j >= 0 ? (int) $b[$j] : 0;
+        $s = $da + $db + $carry;
+        $out = (string) ($s % 10) . $out;
+        $carry = intdiv($s, 10);
+        $i--;
+        $j--;
+    }
+
+    return $out;
+}
+
+/** Différence a − b pour a ≥ b (entiers positifs, chaînes). */
+function monitor_digit_strings_sub_unsigned(string $a, string $b): string
+{
+    $a = ltrim($a, '0') ?: '0';
+    $b = ltrim($b, '0') ?: '0';
+    if ($b === '0') {
+        return $a;
+    }
+    $la = strlen($a);
+    $lb = strlen($b);
+    if ($la < $lb) {
+        return '0';
+    }
+    if ($lb < $la) {
+        $b = str_repeat('0', $la - $lb) . $b;
+    }
+    $i = $la - 1;
+    $borrow = 0;
+    $out = '';
+    while ($i >= 0 || $borrow > 0) {
+        $da = $i >= 0 ? (int) $a[$i] : 0;
+        $db = $i >= 0 ? (int) $b[$i] : 0;
+        $d = $da - $borrow - $db;
+        if ($d < 0) {
+            $d += 10;
+            $borrow = 1;
+        } else {
+            $borrow = 0;
+        }
+        $out = (string) $d . $out;
+        $i--;
+    }
+    $out = ltrim($out, '0') ?: '0';
+
+    return $out;
+}
+
+/** a − b en entier signé (chaîne, éventuellement préfixe '-'). */
+function monitor_digit_strings_sub_signed(string $a, string $b): string
+{
+    $cmp = monitor_cmp_digit_strings($a, $b);
+    if ($cmp === 0) {
+        return '0';
+    }
+    if ($cmp > 0) {
+        return monitor_digit_strings_sub_unsigned($a, $b);
+    }
+
+    return '-' . monitor_digit_strings_sub_unsigned($b, $a);
+}
+
 /** Somme de deux montants bruts (uint256 décimal). */
 function raw_add(mixed $a, mixed $b): string
 {
@@ -86,7 +181,7 @@ function raw_add(mixed $a, mixed $b): string
         return bcadd($x, $y, 0);
     }
 
-    return (string) ((float) $x + (float) $y);
+    return monitor_digit_strings_add($x, $y);
 }
 
 /** Différence de deux montants bruts (résultat signé si bcsub). */
@@ -98,7 +193,7 @@ function raw_sub(mixed $a, mixed $b): string
         return bcsub($x, $y, 0);
     }
 
-    return (string) ((float) $x - (float) $y);
+    return monitor_digit_strings_sub_signed($x, $y);
 }
 
 /** Affiche un montant jeton signé (entier décimal) en ≈ €. */

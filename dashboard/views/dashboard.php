@@ -19,11 +19,16 @@ declare(strict_types=1);
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Monitoring noeud EURCV</title>
+  <link rel="icon" href="lib/deblock.png" type="image/png">
+  <link rel="apple-touch-icon" href="lib/deblock.png">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="header">
-    <h1>Monitoring noeud</h1>
+    <div class="header__brand">
+      <img src="lib/deblock.png" alt="Deblock" class="header__logo" width="44" height="44" decoding="async">
+      <h1>Monitoring noeud</h1>
+    </div>
     <p class="muted">
       <strong>Même périmètre tout le temps</strong> (worker + ce tableau) : adresse noeud et contrat définis dans <code>.env</code>.
       Pas d’autre token ni d’autre noeud dans ces chiffres.
