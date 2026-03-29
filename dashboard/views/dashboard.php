@@ -11,7 +11,7 @@ declare(strict_types=1);
 /** @var string $dashboardOgPage */
 /** @var string $dashboardOgImage */
 $ogTitle = 'Monitoring noeud EURCV — Deblock';
-$ogDescription = 'Tableau de bord interne : flux on-chain du noeud, volumes, classification v1 (payment / top_up / interest), graphiques et coûts (frais estimés, gas). Filtres par dates et par contrepartie.';
+$ogDescription = 'Tableau de bord : flux on-chain du noeud, volumes, classification v1 (payment / top_up / interest), graphiques et coûts (frais estimés, gas). Filtres par dates et par contrepartie.';
 ?>
 <!DOCTYPE html>
 <html lang="fr" prefix="og: https://ogp.me/ns#">
