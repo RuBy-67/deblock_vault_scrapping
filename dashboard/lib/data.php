@@ -8,11 +8,11 @@ require_once __DIR__ . '/format.php';
 const MONITOR_RECENT_TRANSFERS_LIMIT = 100;
 
 /**
- * Charge toutes les données du dashboard (requêtes + séries pour graphiques).
+ * Filtres SQL communs (dates, contrepartie).
  *
- * @return array<string, mixed>
+ * @return array{w: string, params: list<mixed>, cpSql: string, excludeZeroPeerSql: string, zeroAddr: string, dateFrom: string, dateTo: string, counterparty: string}
  */
-function monitor_dashboard_collect(PDO $pdo, string $dateFrom, string $dateTo, string $counterparty, array $cfg): array
+function monitor_dashboard_filter_parts(string $dateFrom, string $dateTo, string $counterparty): array
 {
     $whereRt = ['1=1'];
     $params = [];
@@ -36,7 +36,34 @@ function monitor_dashboard_collect(PDO $pdo, string $dateFrom, string $dateTo, s
   OR (rt.direction = 'out' AND LOWER(rt.to_addr) = '$zeroAddr')
 )";
 
-    $w = implode(' AND ', $whereRt);
+    return [
+        'w' => implode(' AND ', $whereRt),
+        'params' => $params,
+        'cpSql' => $cpSql,
+        'excludeZeroPeerSql' => $excludeZeroPeerSql,
+        'zeroAddr' => $zeroAddr,
+        'dateFrom' => $dateFrom,
+        'dateTo' => $dateTo,
+        'counterparty' => $counterparty,
+    ];
+}
+
+/**
+ * Métriques « cartes » du haut (requêtes légères + agrégats cartes).
+ *
+ * @param array{w: string, params: list<mixed>, cpSql: string, excludeZeroPeerSql: string, zeroAddr: string, dateFrom: string, dateTo: string, counterparty: string} $f
+ * @return array<string, mixed>
+ */
+function monitor_dashboard_collect_shell(PDO $pdo, array $f, array $cfg): array
+{
+    $w = $f['w'];
+    $params = $f['params'];
+    $cpSql = $f['cpSql'];
+    $excludeZeroPeerSql = $f['excludeZeroPeerSql'];
+    $zeroAddr = $f['zeroAddr'];
+    $dateFrom = $f['dateFrom'];
+    $dateTo = $f['dateTo'];
+    $counterparty = $f['counterparty'];
 
     $sqlFlux = "
 SELECT
@@ -113,6 +140,135 @@ WHERE EXISTS (
     $st4 = $pdo->prepare($sqlGas);
     $st4->execute($params);
     $gasRow = $st4->fetch() ?: [];
+
+    $paramsMint = [];
+    if ($dateFrom !== '') {
+        $paramsMint[] = $dateFrom . ' 00:00:00';
+    }
+    if ($dateTo !== '') {
+        $paramsMint[] = $dateTo . ' 23:59:59';
+    }
+    $sqlMintBurn = "
+SELECT
+  COUNT(*) AS n_tx,
+  SUM(CASE WHEN rt.direction = 'in' THEN 1 ELSE 0 END) AS n_mint_in,
+  SUM(CASE WHEN rt.direction = 'out' THEN 1 ELSE 0 END) AS n_burn_out,
+  SUM(CASE WHEN rt.direction = 'in' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE 0 END) AS sum_in_raw,
+  SUM(CASE WHEN rt.direction = 'out' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE 0 END) AS sum_out_raw,
+  MIN(rt.block_time) AS first_seen,
+  MAX(rt.block_time) AS last_seen
+FROM raw_transfers rt
+WHERE $w
+  AND (
+    (rt.direction = 'in' AND LOWER(rt.from_addr) = '$zeroAddr')
+    OR (rt.direction = 'out' AND LOWER(rt.to_addr) = '$zeroAddr')
+  )
+";
+    $stMint = $pdo->prepare($sqlMintBurn);
+    $stMint->execute($paramsMint);
+    $mintBurn = $stMint->fetch() ?: [];
+
+    $inUserRaw = normalize_amount_raw($flux['sum_in_raw'] ?? '0');
+    $outUserRaw = normalize_amount_raw($flux['sum_out_raw'] ?? '0');
+    $inMintRaw = normalize_amount_raw($mintBurn['sum_in_raw'] ?? '0');
+    $outBurnRaw = normalize_amount_raw($mintBurn['sum_out_raw'] ?? '0');
+    $fluxCardShowOnchainSplit = ($counterparty === '');
+    if ($fluxCardShowOnchainSplit) {
+        $inTotalRaw = raw_add($inUserRaw, $inMintRaw);
+        $outTotalRaw = raw_add($outUserRaw, $outBurnRaw);
+        $nTxAllRaw = (int) ($flux['n_tx'] ?? 0) + (int) ($mintBurn['n_tx'] ?? 0);
+    } else {
+        $inTotalRaw = $inUserRaw;
+        $outTotalRaw = $outUserRaw;
+        $nTxAllRaw = (int) ($flux['n_tx'] ?? 0);
+    }
+    $paymentSumRaw = '0';
+    $topUpSumRaw = '0';
+    $nPaymentClass = 0;
+    $nTopUpClass = 0;
+    foreach ($byType as $br) {
+        $et = (string) ($br['event_type'] ?? '');
+        if ($et === 'payment') {
+            $paymentSumRaw = normalize_amount_raw($br['sum_raw'] ?? '0');
+            $nPaymentClass = (int) ($br['n'] ?? 0);
+        } elseif ($et === 'top_up') {
+            $topUpSumRaw = normalize_amount_raw($br['sum_raw'] ?? '0');
+            $nTopUpClass = (int) ($br['n'] ?? 0);
+        }
+    }
+    $vaultApproxBizRaw = raw_sub($topUpSumRaw, $paymentSumRaw);
+
+    return [
+        'cfg' => $cfg,
+        'dateFrom' => $dateFrom,
+        'dateTo' => $dateTo,
+        'counterparty' => $counterparty,
+        'flux' => $flux,
+        'byType' => $byType,
+        'feeRow' => $feeRow,
+        'gasRow' => $gasRow,
+        'mintBurn' => $mintBurn,
+        'inTotalRaw' => $inTotalRaw,
+        'outTotalRaw' => $outTotalRaw,
+        'nTxAllRaw' => $nTxAllRaw,
+        'fluxCardShowOnchainSplit' => $fluxCardShowOnchainSplit,
+        'inMintRaw' => $inMintRaw,
+        'inUserRaw' => $inUserRaw,
+        'outBurnRaw' => $outBurnRaw,
+        'outUserRaw' => $outUserRaw,
+        'paymentSumRaw' => $paymentSumRaw,
+        'topUpSumRaw' => $topUpSumRaw,
+        'nPaymentClass' => $nPaymentClass,
+        'nTopUpClass' => $nTopUpClass,
+        'vaultApproxBizRaw' => $vaultApproxBizRaw,
+        'recentTransfersLimit' => MONITOR_RECENT_TRANSFERS_LIMIT,
+    ];
+}
+
+/**
+ * Graphiques, agrégats détaillés, tableaux (requêtes lourdes).
+ *
+ * @param array{w: string, params: list<mixed>, cpSql: string, excludeZeroPeerSql: string, zeroAddr: string, dateFrom: string, dateTo: string, counterparty: string} $f
+ * @param list<array<string, mixed>>|null $reuseByType si fourni, évite de relire le GROUP BY par type (fusion page complète).
+ * @return array<string, mixed>
+ */
+function monitor_dashboard_collect_heavy(PDO $pdo, array $f, array $cfg, ?array $reuseByType = null): array
+{
+    $w = $f['w'];
+    $params = $f['params'];
+    $cpSql = $f['cpSql'];
+    $excludeZeroPeerSql = $f['excludeZeroPeerSql'];
+    $dateFrom = $f['dateFrom'];
+    $dateTo = $f['dateTo'];
+    $counterparty = $f['counterparty'];
+
+    if ($reuseByType !== null) {
+        $byType = $reuseByType;
+    } else {
+        $sqlClass = "
+SELECT
+  ce.event_type,
+  COUNT(*) AS n,
+  SUM(
+    CASE
+      WHEN ce.event_type = 'interest'
+        AND ce.paired_transfer_id IS NOT NULL
+        AND ce.raw_transfer_id > ce.paired_transfer_id
+      THEN 0
+      ELSE CAST(rt.amount_raw AS DECIMAL(65,0))
+    END
+  ) AS sum_raw
+FROM raw_transfers rt
+JOIN classified_events ce ON ce.raw_transfer_id = rt.id
+WHERE $w
+  $cpSql
+  $excludeZeroPeerSql
+GROUP BY ce.event_type
+";
+        $st2 = $pdo->prepare($sqlClass);
+        $st2->execute($params);
+        $byType = $st2->fetchAll();
+    }
 
     $sqlDaily = "
 SELECT
@@ -278,34 +434,6 @@ LIMIT 50
         $topCounterparties = [];
     }
 
-    $paramsMint = [];
-    if ($dateFrom !== '') {
-        $paramsMint[] = $dateFrom . ' 00:00:00';
-    }
-    if ($dateTo !== '') {
-        $paramsMint[] = $dateTo . ' 23:59:59';
-    }
-    $sqlMintBurn = "
-SELECT
-  COUNT(*) AS n_tx,
-  SUM(CASE WHEN rt.direction = 'in' THEN 1 ELSE 0 END) AS n_mint_in,
-  SUM(CASE WHEN rt.direction = 'out' THEN 1 ELSE 0 END) AS n_burn_out,
-  SUM(CASE WHEN rt.direction = 'in' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE 0 END) AS sum_in_raw,
-  SUM(CASE WHEN rt.direction = 'out' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE 0 END) AS sum_out_raw,
-  MIN(rt.block_time) AS first_seen,
-  MAX(rt.block_time) AS last_seen
-FROM raw_transfers rt
-WHERE $w
-  AND (
-    (rt.direction = 'in' AND LOWER(rt.from_addr) = '$zeroAddr')
-    OR (rt.direction = 'out' AND LOWER(rt.to_addr) = '$zeroAddr')
-  )
-";
-    $stMint = $pdo->prepare($sqlMintBurn);
-    $stMint->execute($paramsMint);
-    $mintBurn = $stMint->fetch() ?: [];
-
-    // --- Séries graphiques ---
     $chartDaily = [];
     foreach ($dailyRows as $dr) {
         $chartDaily[] = [
@@ -509,36 +637,6 @@ WHERE $w
     }
     $hasWeeklyPaymentChart = $chartWeeklyPayment !== [];
 
-    $inUserRaw = normalize_amount_raw($flux['sum_in_raw'] ?? '0');
-    $outUserRaw = normalize_amount_raw($flux['sum_out_raw'] ?? '0');
-    $inMintRaw = normalize_amount_raw($mintBurn['sum_in_raw'] ?? '0');
-    $outBurnRaw = normalize_amount_raw($mintBurn['sum_out_raw'] ?? '0');
-    $fluxCardShowOnchainSplit = ($counterparty === '');
-    if ($fluxCardShowOnchainSplit) {
-        $inTotalRaw = raw_add($inUserRaw, $inMintRaw);
-        $outTotalRaw = raw_add($outUserRaw, $outBurnRaw);
-        $nTxAllRaw = (int) ($flux['n_tx'] ?? 0) + (int) ($mintBurn['n_tx'] ?? 0);
-    } else {
-        $inTotalRaw = $inUserRaw;
-        $outTotalRaw = $outUserRaw;
-        $nTxAllRaw = (int) ($flux['n_tx'] ?? 0);
-    }
-    $paymentSumRaw = '0';
-    $topUpSumRaw = '0';
-    $nPaymentClass = 0;
-    $nTopUpClass = 0;
-    foreach ($byType as $br) {
-        $et = (string) ($br['event_type'] ?? '');
-        if ($et === 'payment') {
-            $paymentSumRaw = normalize_amount_raw($br['sum_raw'] ?? '0');
-            $nPaymentClass = (int) ($br['n'] ?? 0);
-        } elseif ($et === 'top_up') {
-            $topUpSumRaw = normalize_amount_raw($br['sum_raw'] ?? '0');
-            $nTopUpClass = (int) ($br['n'] ?? 0);
-        }
-    }
-    $vaultApproxBizRaw = raw_sub($topUpSumRaw, $paymentSumRaw);
-
     $chartPayload = [
         'daily' => $chartDaily,
         'dailyClass' => $chartClassDaily,
@@ -560,15 +658,7 @@ WHERE $w
     );
 
     return [
-        'cfg' => $cfg,
-        'dateFrom' => $dateFrom,
-        'dateTo' => $dateTo,
-        'counterparty' => $counterparty,
-        'flux' => $flux,
         'byType' => $byType,
-        'feeRow' => $feeRow,
-        'gasRow' => $gasRow,
-        'mintBurn' => $mintBurn,
         'rows' => $rows,
         'topCounterparties' => $topCounterparties,
         'chartDaily' => $chartDaily,
@@ -593,19 +683,19 @@ WHERE $w
         'payVsPayPlusTopFloat' => $payVsPayPlusTopFloat,
         'tPayF' => $tPayF,
         'tTopF' => $tTopF,
-        'inTotalRaw' => $inTotalRaw,
-        'outTotalRaw' => $outTotalRaw,
-        'nTxAllRaw' => $nTxAllRaw,
-        'fluxCardShowOnchainSplit' => $fluxCardShowOnchainSplit,
-        'inMintRaw' => $inMintRaw,
-        'inUserRaw' => $inUserRaw,
-        'outBurnRaw' => $outBurnRaw,
-        'outUserRaw' => $outUserRaw,
-        'paymentSumRaw' => $paymentSumRaw,
-        'topUpSumRaw' => $topUpSumRaw,
-        'nPaymentClass' => $nPaymentClass,
-        'nTopUpClass' => $nTopUpClass,
-        'vaultApproxBizRaw' => $vaultApproxBizRaw,
-        'recentTransfersLimit' => MONITOR_RECENT_TRANSFERS_LIMIT,
     ];
+}
+
+/**
+ * Charge toutes les données du dashboard (requêtes + séries pour graphiques).
+ *
+ * @return array<string, mixed>
+ */
+function monitor_dashboard_collect(PDO $pdo, string $dateFrom, string $dateTo, string $counterparty, array $cfg): array
+{
+    $f = monitor_dashboard_filter_parts($dateFrom, $dateTo, $counterparty);
+    $shell = monitor_dashboard_collect_shell($pdo, $f, $cfg);
+    $heavy = monitor_dashboard_collect_heavy($pdo, $f, $cfg, $shell['byType']);
+
+    return array_merge($shell, $heavy);
 }

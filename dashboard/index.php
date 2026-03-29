@@ -24,7 +24,8 @@ try {
     exit;
 }
 
-$view = monitor_dashboard_collect($pdo, $dateFrom, $dateTo, $counterparty, $cfg);
+$f = monitor_dashboard_filter_parts($dateFrom, $dateTo, $counterparty);
+$view = monitor_dashboard_collect_shell($pdo, $f, $cfg);
 extract($view, EXTR_OVERWRITE);
 
 /** @var callable(string): string $cpDashboardHref */
