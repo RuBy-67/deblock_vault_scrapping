@@ -35,5 +35,30 @@ function monitor_load_env(string $rootDir): array
         'db_pass' => $g('MYSQL_PASSWORD', ''),
         'node_address' => strtolower($g('NODE_ADDRESS', '0x4d2fb5f8ec243fde4df1a9678b82238570c7e0e4')),
         'token_contract' => strtolower($g('TOKEN_CONTRACT', '0xbeef007ecfbfdf9b919d0050821a9b6dbd634ff0')),
+        /** URL publique du dossier dashboard (https://exemple.com/chemin/dashboard), sans slash final — pour aperçus Discord / Open Graph derrière proxy. */
+        'public_base_url' => trim($g('DASHBOARD_PUBLIC_URL', '')),
     ];
+}
+
+/**
+ * Base URL absolue du dashboard (schéma + hôte + chemin du dossier), pour og:image et og:url.
+ */
+function monitor_dashboard_public_base(array $cfg): string
+{
+    $fromEnv = trim((string) ($cfg['public_base_url'] ?? ''));
+    if ($fromEnv !== '') {
+        return rtrim($fromEnv, '/');
+    }
+    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || ((string) ($_SERVER['SERVER_PORT'] ?? '') === '443')
+        || (strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https');
+    $scheme = $https ? 'https' : 'http';
+    $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
+    $script = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? '/index.php'));
+    $dir = dirname($script);
+    if ($dir === '/' || $dir === '.') {
+        $dir = '';
+    }
+
+    return rtrim($scheme . '://' . $host . $dir, '/');
 }

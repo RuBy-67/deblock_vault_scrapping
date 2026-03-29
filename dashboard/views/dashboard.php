@@ -7,13 +7,31 @@ declare(strict_types=1);
 /** @var string $dateTo */
 /** @var string $counterparty */
 /** @var callable(string): string $cpDashboardHref */
+/** @var string $dashboardOgBase */
+/** @var string $dashboardOgPage */
+/** @var string $dashboardOgImage */
+$ogTitle = 'Monitoring noeud EURCV — Deblock';
+$ogDescription = 'Tableau de bord interne : flux on-chain du noeud, volumes, classification v1 (payment / top_up / interest), graphiques et coûts (frais estimés, gas). Filtres par dates et par contrepartie.';
 ?>
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" prefix="og: https://ogp.me/ns#">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Monitoring noeud EURCV</title>
+  <meta name="description" content="<?= htmlspecialchars($ogDescription) ?>">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Deblock — monitoring noeud">
+  <meta property="og:title" content="<?= htmlspecialchars($ogTitle) ?>">
+  <meta property="og:description" content="<?= htmlspecialchars($ogDescription) ?>">
+  <meta property="og:url" content="<?= htmlspecialchars($dashboardOgPage) ?>">
+  <meta property="og:image" content="<?= htmlspecialchars($dashboardOgImage) ?>">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:locale" content="fr_FR">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="<?= htmlspecialchars($ogTitle) ?>">
+  <meta name="twitter:description" content="<?= htmlspecialchars($ogDescription) ?>">
+  <meta name="twitter:image" content="<?= htmlspecialchars($dashboardOgImage) ?>">
   <link rel="icon" href="lib/deblock.png" type="image/png">
   <link rel="apple-touch-icon" href="lib/deblock.png">
   <link rel="stylesheet" href="styles.css">

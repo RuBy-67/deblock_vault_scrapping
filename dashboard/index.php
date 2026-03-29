@@ -26,4 +26,8 @@ $cpDashboardHref = static function (string $cp) use ($dateFrom, $dateTo): string
     return '?' . http_build_query($q);
 };
 
+$dashboardOgBase = monitor_dashboard_public_base($cfg);
+$dashboardOgPage = $dashboardOgBase . '/' . basename((string) ($_SERVER['SCRIPT_NAME'] ?? 'index.php'));
+$dashboardOgImage = $dashboardOgBase . '/lib/deblock.png';
+
 require __DIR__ . '/views/dashboard.php';
