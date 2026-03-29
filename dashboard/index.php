@@ -3,8 +3,6 @@
 declare(strict_types=1);
 
 require __DIR__ . '/config.php';
-require __DIR__ . '/db.php';
-require_once __DIR__ . '/lib/data.php';
 
 $root = dirname(__DIR__);
 $cfg = monitor_load_env($root);
@@ -15,18 +13,6 @@ $counterparty = isset($_GET['counterparty']) ? strtolower(trim((string) $_GET['c
 if ($counterparty !== '' && !preg_match('/^0x[a-f0-9]{40}$/', $counterparty)) {
     $counterparty = '';
 }
-
-try {
-    $pdo = monitor_pdo($cfg);
-} catch (Throwable $e) {
-    http_response_code(500);
-    echo '<pre>Connexion MySQL : ' . htmlspecialchars($e->getMessage()) . '</pre>';
-    exit;
-}
-
-$f = monitor_dashboard_filter_parts($dateFrom, $dateTo, $counterparty);
-$view = monitor_dashboard_collect_shell($pdo, $f, $cfg);
-extract($view, EXTR_OVERWRITE);
 
 /** @var callable(string): string $cpDashboardHref */
 $cpDashboardHref = static function (string $cp) use ($dateFrom, $dateTo): string {

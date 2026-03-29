@@ -1,2 +1,11 @@
 # Pas de liste des dossiers (évite de “naviguer” au hasard sur le serveur).
 Options -Indexes
+RewriteEngine On
+
+# Enlever .php de l'URL
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}.php -f
+RewriteRule ^([^\.]+)$ $1.php [L]
+DirectoryIndex index.php
+
+RewriteRule ^(.*/)?index$ $1 [R=301,L]

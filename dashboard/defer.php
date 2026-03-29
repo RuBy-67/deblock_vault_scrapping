@@ -28,8 +28,10 @@ try {
 
 try {
     $f = monitor_dashboard_filter_parts($dateFrom, $dateTo, $counterparty);
-    $heavy = monitor_dashboard_collect_heavy($pdo, $f, $cfg, null);
-    extract($heavy, EXTR_OVERWRITE);
+    $shell = monitor_dashboard_collect_shell($pdo, $f, $cfg);
+    $heavy = monitor_dashboard_collect_heavy($pdo, $f, $cfg, $shell['byType']);
+    $merged = array_merge($shell, $heavy);
+    extract($merged, EXTR_OVERWRITE);
     $dateFrom = $f['dateFrom'];
     $dateTo = $f['dateTo'];
     $counterparty = $f['counterparty'];
@@ -47,6 +49,10 @@ try {
     };
 
     ob_start();
+    require __DIR__ . '/views/cards_panel.php';
+    $cardsHtml = ob_get_clean();
+
+    ob_start();
     require __DIR__ . '/views/deferred_panel.php';
     $html = ob_get_clean();
 
@@ -54,6 +60,7 @@ try {
 
     echo json_encode(
         [
+            'cardsHtml' => $cardsHtml,
             'html' => $html,
             'chartPayloadJson' => $chartPayloadJson,
             'initCharts' => $initCharts,

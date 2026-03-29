@@ -371,6 +371,18 @@ code {
   border-radius: 4px;
 }
 
+.cards--pending .metric-pending {
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+  font-style: italic;
+  letter-spacing: 0.01em;
+}
+
+.metric-pending--error {
+  font-style: normal;
+  color: #991b1b;
+}
+
 .monitor-deferred {
   margin-top: 0.5rem;
 }
