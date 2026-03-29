@@ -5,7 +5,7 @@
 1. **`npm run sync`** (`worker/sync.mjs`) — lit le `.env` à la **racine** du projet.
    - Requête les logs `Transfer` du **`TOKEN_CONTRACT`** où **`NODE_ADDRESS`** est `from` ou `to`.
    - Écrit **`raw_transfers`** (`tx_hash`, `log_index`, `block_number`, `block_time`, `from_addr`, `to_addr`, **`amount_raw`**, `direction` in/out).
-   - Enregistre le coût gas par tx dans **`tx_gas`** (réutilisation si plusieurs logs dans la même tx).
+   - Enregistre le **coût total ETH par transaction** dans **`tx_gas`** : une seule ligne par `tx_hash` ; si une tx contient **plusieurs** logs `Transfer` concernant le noeud, le receipt n’est récupéré **qu’une fois** (`ensureTxGas` → `INSERT IGNORE`, clé primaire `tx_hash`). Le montant inclut `gasUsed × effectiveGasPrice` et, si présent sur le receipt, **le coût blob** (EIP-4844).
 2. **`npm run classify`** (`worker/classify.mjs`) — heuristique métier v1 → **`classified_events`** (voir commentaires en tête de `classify.mjs`).
 3. **`npm run pipeline`** — enchaîne sync puis classify.
 
@@ -54,6 +54,14 @@ La progression est stockée dans **`sync_state.last_block_scanned`** (clé `main
 Contrainte unique **`(tx_hash, log_index)`** sur `raw_transfers`. Les insertions utilisent **`INSERT IGNORE`** : relancer le sync est **idempotent** pour les mêmes logs.
 
 Après import de nouvelles lignes brutes, lancer **`npm run classify`** (incrémental ou `CLASSIFY_FULL_REBUILD=true` selon le besoin).
+
+### Gas ETH (`tx_gas`) — pas de double comptage dans les totaux
+
+- **Une tx = une ligne `tx_gas`** : le coût affiché / agrégé est le **coût réel de la transaction entière** (payé une fois par l’émetteur), pas « par log ».
+- Dans le dashboard, la colonne **Gas** sur chaque ligne `raw_transfers` **répète** le même `cost_eth` pour toutes les lignes partageant le même `tx_hash` (c’est voulu : rappel du coût de la tx, pas une allocation au log).
+- L’agrégat **« Coûts période » (gas)** somme **`tx_gas.cost_eth`** pour les transactions qui ont **au moins** un transfert brut dans le périmètre filtré (`EXISTS` sur `raw_transfers`) : chaque tx n’entre **qu’une fois** dans la somme → **on ne multiplie pas** le gas par le nombre de logs.
+- **Sous-estimation possible** si des lignes `raw_transfers` existent **sans** ligne `tx_gas` (échec RPC sur `getTransactionReceipt`, sync interrompu au milieu d’un chunk, import partiel). Dans ce cas le total gas du dashboard peut être **trop bas**, pas « gonflé » par les doublons de logs.
+- **Perte d’information** : on ne stocke **pas** les transferts des txs qui n’ont **aucun** `Transfer` du token avec le noeud en `from`/`to` — donc pas de `tx_gas` non plus pour ces txs, ce qui est cohérent : le périmètre du projet est les mouvements du noeud sur ce contrat, pas tout l’historique gas du réseau.
 
 Il y a peut-être une erreur dans le dashboard, car l'heuristique qui cherche les intérêts prélevés par Deblock sur le Vault ne semble pas tout à fait exacte
 

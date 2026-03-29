@@ -187,9 +187,14 @@ async function ensureTxGas(txHash, blockNumber) {
   const receipt = await client.getTransactionReceipt({ hash: txHash });
   const gasUsed = receipt.gasUsed;
   const effective =
-    receipt.effectiveGasPrice ??
-    (receipt.gasPrice ?? 0n);
-  const costWei = gasUsed * effective;
+    receipt.effectiveGasPrice ?? receipt.gasPrice ?? 0n;
+  let costWei = gasUsed * effective;
+  // EIP-4844 : coût blob en plus du gas d’exécution (sinon sous-estimation sur txs avec blobs)
+  const blobUsed = receipt.blobGasUsed;
+  const blobPrice = receipt.blobGasPrice;
+  if (blobUsed != null && blobPrice != null) {
+    costWei += blobUsed * blobPrice;
+  }
   const costEth = formatEther(costWei);
 
   await pool.query(
