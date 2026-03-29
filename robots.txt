@@ -1,0 +1,3 @@
+# Monitoring interne : ne pas indexer ni parcourir le site par des robots.
+User-agent: *
+Disallow: /
