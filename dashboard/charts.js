@@ -28,6 +28,39 @@
     });
   }
 
+  /**
+   * Défilement horizontal si beaucoup de points (surtout mobile) : largeur min du conteneur graphique.
+   * Le parent direct du canvas doit être .chart-canvas-wrap ou .vault-mini-chart.
+   */
+  function ensureChartHorizontalScroll(canvas, labelCount, options) {
+    options = options || {};
+    if (!canvas) return;
+    var inner = canvas.parentElement;
+    if (!inner) return;
+
+    var isMini = inner.classList && inner.classList.contains('vault-mini-chart');
+    var pxPerLabel = options.pxPerLabel != null ? options.pxPerLabel : isMini ? 22 : 36;
+    var maxW = options.maxWidth != null ? options.maxWidth : isMini ? 3200 : 9600;
+    var minN = options.minLabels != null ? options.minLabels : 5;
+
+    if (!labelCount || labelCount < minN) {
+      inner.style.minWidth = '';
+      return;
+    }
+
+    var scrollEl = inner.parentElement;
+    if (!scrollEl || !scrollEl.classList || !scrollEl.classList.contains('chart-scroll')) {
+      scrollEl = document.createElement('div');
+      scrollEl.className = 'chart-scroll';
+      inner.parentNode.insertBefore(scrollEl, inner);
+      scrollEl.appendChild(inner);
+    }
+
+    var viewport = scrollEl.clientWidth || document.documentElement.clientWidth || 360;
+    var targetW = Math.min(maxW, Math.max(viewport, labelCount * pxPerLabel));
+    inner.style.minWidth = targetW + 'px';
+  }
+
   window.monitorInitCharts = function () {
     var payloadEl = document.getElementById('monitor-chart-payload');
     if (!payloadEl) return;
@@ -74,7 +107,7 @@
         return d.day;
       });
 
-      new Chart(document.getElementById('chartActiviteJour'), {
+      var chAct = new Chart(document.getElementById('chartActiviteJour'), {
         type: 'bar',
         data: {
           labels: labels,
@@ -112,8 +145,9 @@
           },
         },
       });
+      ensureChartHorizontalScroll(chAct.canvas, labels.length, {});
 
-      new Chart(document.getElementById('chartNodeVolumeJour'), {
+      var chNodeVol = new Chart(document.getElementById('chartNodeVolumeJour'), {
         type: 'line',
         data: {
           labels: labels,
@@ -163,8 +197,9 @@
           },
         },
       });
+      ensureChartHorizontalScroll(chNodeVol.canvas, labels.length, {});
 
-      new Chart(document.getElementById('chartInterestJour'), {
+      var chInt = new Chart(document.getElementById('chartInterestJour'), {
         type: 'bar',
         data: {
           labels: labels,
@@ -212,10 +247,11 @@
           },
         },
       });
+      ensureChartHorizontalScroll(chInt.canvas, labels.length, {});
 
       var elPayTopupCombined = document.getElementById('chartPaymentTopupCombined');
       if (elPayTopupCombined && dailyClass && dailyClass.length) {
-        new Chart(elPayTopupCombined, {
+        var chPayTop = new Chart(elPayTopupCombined, {
           type: 'bar',
           data: {
             labels: labels,
@@ -305,12 +341,13 @@
             },
           },
         });
+        ensureChartHorizontalScroll(chPayTop.canvas, labels.length, {});
       }
 
       // Petite courbe net (Top-up - Payment), cumulée dans le temps, dans la carte du haut.
       var elVault = document.getElementById('chartVaultDaily');
       if (elVault && vaultDaily && vaultDaily.length) {
-        new Chart(elVault, {
+        var chVault = new Chart(elVault, {
           type: 'line',
           data: {
             labels: vaultDaily.map(function (d) {
@@ -360,12 +397,13 @@
             },
           },
         });
+        ensureChartHorizontalScroll(chVault.canvas, vaultDaily.length, { pxPerLabel: 22, maxWidth: 3200 });
       }
 
       // Graphique "écart journalier" : top_up - payment (v1) pour chaque jour.
       var elVaultDelta = document.getElementById('chartVaultDeltaDaily');
       if (elVaultDelta && vaultDeltaDaily && vaultDeltaDaily.length) {
-        new Chart(elVaultDelta, {
+        var chVaultD = new Chart(elVaultDelta, {
           type: 'line',
           data: {
             labels: vaultDeltaDaily.map(function (d) {
@@ -415,9 +453,10 @@
             },
           },
         });
+        ensureChartHorizontalScroll(chVaultD.canvas, vaultDeltaDaily.length, { pxPerLabel: 22, maxWidth: 3200 });
       }
 
-      new Chart(document.getElementById('chartPaymentAvgDaily'), {
+      var chAvgPay = new Chart(document.getElementById('chartPaymentAvgDaily'), {
         type: 'line',
         data: {
           labels: labels,
@@ -470,59 +509,64 @@
           },
         },
       });
+      ensureChartHorizontalScroll(chAvgPay.canvas, labels.length, {});
 
-      var elPayTopupCount = document.getElementById('chartPaymentTopupCount'); if (elPayTopupCount) new Chart(elPayTopupCount, {
-        type: 'bar',
-        data: {
-          labels: labels,
-          datasets: [
-            {
-              label: 'Payment',
-              data: dailyClass.map(function (d) {
-                return d.nPayment;
-              }),
-              backgroundColor: 'rgba(124, 58, 237, 0.55)',
-              borderColor: 'rgba(124, 58, 237, 0.95)',
-              borderWidth: 1,
-            },
-            {
-              label: 'Top up',
-              data: dailyClass.map(function (d) {
-                return d.nTopUp;
-              }),
-              backgroundColor: 'rgba(234, 88, 12, 0.55)',
-              borderColor: 'rgba(234, 88, 12, 0.95)',
-              borderWidth: 1,
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            tooltip: {
-              callbacks: {
-                label: function (ctx) {
-                  return ctx.dataset.label + ' : ' + fmtN(ctx.parsed.y);
+      var elPayTopupCount = document.getElementById('chartPaymentTopupCount');
+      if (elPayTopupCount) {
+        var chPayCnt = new Chart(elPayTopupCount, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: 'Payment',
+                data: dailyClass.map(function (d) {
+                  return d.nPayment;
+                }),
+                backgroundColor: 'rgba(124, 58, 237, 0.55)',
+                borderColor: 'rgba(124, 58, 237, 0.95)',
+                borderWidth: 1,
+              },
+              {
+                label: 'Top up',
+                data: dailyClass.map(function (d) {
+                  return d.nTopUp;
+                }),
+                backgroundColor: 'rgba(234, 88, 12, 0.55)',
+                borderColor: 'rgba(234, 88, 12, 0.95)',
+                borderWidth: 1,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              tooltip: {
+                callbacks: {
+                  label: function (ctx) {
+                    return ctx.dataset.label + ' : ' + fmtN(ctx.parsed.y);
+                  },
                 },
               },
             },
-          },
-          scales: {
-            x: { ticks: { maxRotation: 45, minRotation: 0 }, stacked: false },
-            y: {
-              beginAtZero: true,
-              ticks: { callback: function (val) { return fmtN(val); } },
+            scales: {
+              x: { ticks: { maxRotation: 45, minRotation: 0 }, stacked: false },
+              y: {
+                beginAtZero: true,
+                ticks: { callback: function (val) { return fmtN(val); } },
+              },
             },
           },
-        },
-      });
+        });
+        ensureChartHorizontalScroll(chPayCnt.canvas, labels.length, {});
+      }
     }
 
     if (gasDaily && gasDaily.length) {
       var elGas = document.getElementById('chartGasDaily');
       if (elGas) {
-        new Chart(elGas, {
+        var chGas = new Chart(elGas, {
           type: 'line',
           data: {
             labels: gasDaily.map(function (d) {
@@ -568,13 +612,14 @@
             },
           },
         });
+        ensureChartHorizontalScroll(chGas.canvas, gasDaily.length, { pxPerLabel: 22, maxWidth: 3200 });
       }
     }
 
     if (mintDaily && mintDaily.length) {
       var elMint = document.getElementById('chartMintDaily');
       if (elMint) {
-        new Chart(elMint, {
+        var chMint = new Chart(elMint, {
           type: 'line',
           data: {
             labels: mintDaily.map(function (d) {
@@ -620,6 +665,7 @@
             },
           },
         });
+        ensureChartHorizontalScroll(chMint.canvas, mintDaily.length, { pxPerLabel: 22, maxWidth: 3200 });
       }
     }
 
@@ -635,7 +681,7 @@
       var avgDistinctPeriod = weeklyMeta.avgPerDistinctAccountPeriodEur;
       var elW = document.getElementById('chartPaymentWeekly');
       if (elW) {
-        new Chart(elW, {
+        var chWeekly = new Chart(elW, {
           type: 'bar',
           data: {
             labels: wlabels,
@@ -740,6 +786,7 @@
             },
           },
         });
+        ensureChartHorizontalScroll(chWeekly.canvas, wlabels.length, { pxPerLabel: 40, maxWidth: 8000 });
       }
     }
   };

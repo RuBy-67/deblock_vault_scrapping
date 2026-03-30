@@ -329,6 +329,15 @@ body {
   line-height: 1.45;
 }
 
+.chart-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+}
+
 .chart-canvas-wrap {
   position: relative;
   height: min(320px, 45vh);
