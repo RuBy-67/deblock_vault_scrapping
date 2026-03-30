@@ -227,6 +227,42 @@ function fmt_eur(string $raw): string
     return fr_format_number($s) . "\u{202F}€";
 }
 
+/**
+ * EUR (≈ 1 unité token = 1€) vers raw wei entier (pour requêtes/comparaisons).
+ * - Entrée accepte "1234" / "1234.56" / "1234,56"
+ * - Arrondi à 2 décimales (MONITOR_EUR_DISPLAY_DECIMALS).
+ */
+function eur_to_raw_wei(mixed $eur): string
+{
+    $s = trim((string) $eur);
+    if ($s === '') {
+        return '0';
+    }
+    $s = str_replace(',', '.', $s);
+    if (!preg_match('/^\d+(\.\d+)?$/', $s)) {
+        return '0';
+    }
+
+    $parts = explode('.', $s, 2);
+    $intPart = $parts[0] ?? '0';
+    $fracPart = $parts[1] ?? '';
+
+    // On arrondit sur la 3e décimale (car display = 2).
+    $fracPadded = str_pad($fracPart, 3, '0', STR_PAD_RIGHT);
+    $frac2 = substr($fracPadded, 0, 2);
+    $roundDigit = $fracPadded[2] ?? '0';
+
+    $intRaw = $intPart . str_repeat('0', MONITOR_CHAIN_DECIMALS);
+    $fracRaw = $frac2 . str_repeat('0', (MONITOR_CHAIN_DECIMALS - MONITOR_EUR_DISPLAY_DECIMALS));
+
+    $raw = monitor_digit_strings_add($intRaw, $fracRaw);
+    if ($roundDigit >= '5') {
+        $raw = monitor_digit_strings_add($raw, '1' . str_repeat('0', (MONITOR_CHAIN_DECIMALS - MONITOR_EUR_DISPLAY_DECIMALS)));
+    }
+
+    return $raw;
+}
+
 /** Coût gas depuis la base (décimal ETH), décimales limitées. */
 function fmt_eth(mixed $costEth): string
 {

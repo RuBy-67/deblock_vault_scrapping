@@ -226,6 +226,90 @@ WHERE $w
 }
 
 /**
+ * Recherche de wallets dont le "vault v1" (top_up - payment) est proche d’une valeur cible.
+ *
+ * Important : calcul basé sur la même classification v1 que le dashboard (event_type payment/top_up).
+ *
+ * @return list<array<string, mixed>>
+ */
+function monitor_dashboard_search_vault_v1_counterparties(
+    PDO $pdo,
+    array $f,
+    string $vaultTargetRawWei,
+    ?string $vaultToleranceRawWei,
+    int $limit = 20
+): array {
+    $w = $f['w'];
+    $params = $f['params'];
+    $cpSql = $f['cpSql'];
+    $excludeZeroPeerSql = $f['excludeZeroPeerSql'];
+
+    // inner = agrégats par contrepartie.
+    $sqlInner = "
+SELECT
+  LOWER(ce.counterparty) AS cp,
+  SUM(CASE WHEN ce.event_type = 'payment' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE 0 END) AS sum_payment_raw,
+  SUM(CASE WHEN ce.event_type = 'top_up' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE 0 END) AS sum_topup_raw,
+  (
+    SUM(CASE WHEN ce.event_type = 'top_up' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE 0 END)
+    -
+    SUM(CASE WHEN ce.event_type = 'payment' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE 0 END)
+  ) AS vault_approx_raw,
+  COUNT(CASE WHEN ce.event_type = 'payment' THEN 1 END) AS n_payment,
+  COUNT(CASE WHEN ce.event_type = 'top_up' THEN 1 END) AS n_topup
+FROM raw_transfers rt
+JOIN classified_events ce ON ce.raw_transfer_id = rt.id
+WHERE $w
+  $cpSql
+  $excludeZeroPeerSql
+  AND ce.event_type IN ('payment', 'top_up')
+GROUP BY LOWER(ce.counterparty)
+";
+
+    if ($vaultToleranceRawWei !== null && $vaultToleranceRawWei !== '0') {
+        $sql = "
+SELECT
+  x.cp,
+  x.sum_payment_raw,
+  x.sum_topup_raw,
+  x.vault_approx_raw,
+  x.n_payment,
+  x.n_topup,
+  CAST(ABS(x.vault_approx_raw - ?) AS DECIMAL(65,0)) AS abs_diff_raw
+FROM (
+  {$sqlInner}
+) x
+WHERE ABS(x.vault_approx_raw - ?) <= ?
+ORDER BY ABS(x.vault_approx_raw - ?) ASC
+LIMIT {$limit}
+";
+
+        $bind = array_merge($params, [$vaultTargetRawWei, $vaultTargetRawWei, $vaultToleranceRawWei, $vaultTargetRawWei]);
+    } else {
+        $sql = "
+SELECT
+  x.cp,
+  x.sum_payment_raw,
+  x.sum_topup_raw,
+  x.vault_approx_raw,
+  x.n_payment,
+  x.n_topup,
+  CAST(ABS(x.vault_approx_raw - ?) AS DECIMAL(65,0)) AS abs_diff_raw
+FROM (
+  {$sqlInner}
+) x
+ORDER BY ABS(x.vault_approx_raw - ?) ASC
+LIMIT {$limit}
+";
+        $bind = array_merge($params, [$vaultTargetRawWei, $vaultTargetRawWei]);
+    }
+
+    $st = $pdo->prepare($sql);
+    $st->execute($bind);
+    return $st->fetchAll() ?: [];
+}
+
+/**
  * Graphiques, agrégats détaillés, tableaux (requêtes lourdes).
  *
  * @param array{w: string, params: list<mixed>, cpSql: string, excludeZeroPeerSql: string, zeroAddr: string, dateFrom: string, dateTo: string, counterparty: string} $f

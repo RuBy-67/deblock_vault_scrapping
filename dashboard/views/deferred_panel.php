@@ -11,10 +11,72 @@ declare(strict_types=1);
 /** @var list<array<string, mixed>> $byType */
 /** @var list<array{day: string, n: int}> $chartDaily */
 /** @var bool $hasWeeklyPaymentChart */
+/** @var string $vaultTargetEur */
+/** @var list<array<string, mixed>> $vaultMatches */
 /** @var string $chartPayloadJson */
 /** @var int $recentTransfersLimit */
 /** @var callable(string): string $cpDashboardHref */
 ?>
+<?php
+$amountSearchActive = $counterparty === '' && (($vaultTargetEur ?? '') !== '');
+if ($amountSearchActive) : ?>
+  <details class="panel panel-details" open>
+    <summary class="panel-details__summary">Wallets proches d’un montant cible (Vault v1)</summary>
+    <p class="muted panel-details__intro">
+      Cible : <strong><?= htmlspecialchars(fmt_eur((string) eur_to_raw_wei($vaultTargetEur))) ?></strong> ·
+      tri par écart absolu (Top-up − Payment) sur la période / filtre, donne le montant actuel du compte.
+    </p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Wallet</th>
+            <th>Vault v1</th>
+            <th>Top-up</th>
+            <th>Payment</th>
+            <th>Ecart (≈ €)</th>
+            <th># payment</th>
+            <th># top_up</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php foreach ($vaultMatches as $tr) : ?>
+          <?php
+            $cpAdr = (string) ($tr['cp'] ?? '');
+            $vaultRaw = (string) ($tr['vault_approx_raw'] ?? '0');
+            $sumTopRaw = (string) ($tr['sum_topup_raw'] ?? '0');
+            $sumPayRaw = (string) ($tr['sum_payment_raw'] ?? '0');
+            $absDiffRaw = (string) ($tr['abs_diff_raw'] ?? '0');
+          ?>
+          <tr>
+            <td class="mono cp-cell" style="font-size:0.82rem">
+              <a href="<?= htmlspecialchars($cpDashboardHref($cpAdr)) ?>" title="Filtrer le tableau de bord sur ce portefeuille"><?= htmlspecialchars(substr($cpAdr, 0, 12)) ?>…</a>
+              <span class="cp-actions">
+                <button type="button" class="btn-copy btn-copy--sm" data-copy="<?= htmlspecialchars($cpAdr) ?>" data-copy-label="Copier" title="Copier l’adresse complète">Copier</button>
+                <a href="https://etherscan.io/address/<?= htmlspecialchars($cpAdr) ?>" target="_blank" rel="noopener" class="muted" style="font-size:0.75rem">Etherscan</a>
+              </span>
+            </td>
+            <td><?= htmlspecialchars(fmt_eur_signed_raw($vaultRaw)) ?></td>
+            <td><?= htmlspecialchars(fmt_eur($sumTopRaw)) ?></td>
+            <td><?= htmlspecialchars(fmt_eur($sumPayRaw)) ?></td>
+            <td class="muted"><?= htmlspecialchars(fmt_eur($absDiffRaw)) ?></td>
+            <td><?= htmlspecialchars(fmt_int_fr((int) ($tr['n_payment'] ?? 0))) ?></td>
+            <td><?= htmlspecialchars(fmt_int_fr((int) ($tr['n_topup'] ?? 0))) ?></td>
+            <td class="muted" style="font-size:0.8rem"> </td>
+          </tr>
+          <?php endforeach; ?>
+          <?php if (!$vaultMatches) : ?>
+          <tr><td colspan="8" class="muted">Aucun wallet proche sur cette période / filtre.</td></tr>
+          <?php endif; ?>
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <?php return; ?>
+<?php endif; ?>
+
   <section class="panel chart-panel">
     <h2>Graphiques activité par jour</h2>
     <p class="muted" style="margin-top:-0.35rem">
@@ -134,6 +196,62 @@ declare(strict_types=1);
   </section>
 
   <?php if ($counterparty === '') : ?>
+  <?php if (($vaultTargetEur ?? '') !== '') : ?>
+  <details class="panel panel-details">
+    <summary class="panel-details__summary">Wallets proches d’un montant cible (Vault v1)</summary>
+    <p class="muted panel-details__intro">
+      Cible : <strong><?= htmlspecialchars(fmt_eur((string) eur_to_raw_wei($vaultTargetEur))) ?></strong> ·
+      tri par écart absolu (Top-up − Payment) sur la période / filtre.
+    </p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Wallet</th>
+            <th>Vault v1</th>
+            <th>Top-up</th>
+            <th>Payment</th>
+            <th>Ecart (≈ €)</th>
+            <th># payment</th>
+            <th># top_up</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php foreach ($vaultMatches as $tr) : ?>
+          <?php
+            $cpAdr = (string) ($tr['cp'] ?? '');
+            $vaultRaw = (string) ($tr['vault_approx_raw'] ?? '0');
+            $sumTopRaw = (string) ($tr['sum_topup_raw'] ?? '0');
+            $sumPayRaw = (string) ($tr['sum_payment_raw'] ?? '0');
+            $absDiffRaw = (string) ($tr['abs_diff_raw'] ?? '0');
+          ?>
+          <tr>
+            <td class="mono cp-cell" style="font-size:0.82rem">
+              <a href="<?= htmlspecialchars($cpDashboardHref($cpAdr)) ?>" title="Filtrer le tableau de bord sur ce portefeuille"><?= htmlspecialchars(substr($cpAdr, 0, 12)) ?>…</a>
+              <span class="cp-actions">
+                <button type="button" class="btn-copy btn-copy--sm" data-copy="<?= htmlspecialchars($cpAdr) ?>" data-copy-label="Copier" title="Copier l’adresse complète">Copier</button>
+                <a href="https://etherscan.io/address/<?= htmlspecialchars($cpAdr) ?>" target="_blank" rel="noopener" class="muted" style="font-size:0.75rem">Etherscan</a>
+              </span>
+            </td>
+            <td><?= htmlspecialchars(fmt_eur_signed_raw($vaultRaw)) ?></td>
+            <td><?= htmlspecialchars(fmt_eur($sumTopRaw)) ?></td>
+            <td><?= htmlspecialchars(fmt_eur($sumPayRaw)) ?></td>
+            <td class="muted"><?= htmlspecialchars(fmt_eur($absDiffRaw)) ?></td>
+            <td><?= htmlspecialchars(fmt_int_fr((int) ($tr['n_payment'] ?? 0))) ?></td>
+            <td><?= htmlspecialchars(fmt_int_fr((int) ($tr['n_topup'] ?? 0))) ?></td>
+            <td class="muted" style="font-size:0.8rem"> </td>
+          </tr>
+          <?php endforeach; ?>
+          <?php if (!$vaultMatches) : ?>
+          <tr><td colspan="8" class="muted">Aucun wallet proche sur cette période / filtre.</td></tr>
+          <?php endif; ?>
+        </tbody>
+      </table>
+    </div>
+  </details>
+  <?php endif; ?>
+
   <details class="panel panel-details">
     <summary class="panel-details__summary">Adresses les plus actives, exclus mint/burn <code>0x0</code></summary>
     <div class="table-wrap">

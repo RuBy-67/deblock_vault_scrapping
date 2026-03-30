@@ -45,7 +45,7 @@ $ogDescription = 'Tableau de bord : flux on-chain du noeud, volumes, classificat
     <p class="muted">
       Noeud : <code><?= htmlspecialchars($cfg['node_address']) ?></code>
       Contrat token : <code><?= htmlspecialchars($cfg['token_contract']) ?></code>
-      Montants jeton affichés comme <strong>équivalent euro</strong> (1 unité sur chaîne ≈ 1 €).
+      Montants jeton affichés comme <strong>équivalent euro</strong> (1 unité sur chaîne ≈ 1 €), mis à jours toute les 30 minutes.
     </p>
   </header>
 
@@ -56,6 +56,12 @@ $ogDescription = 'Tableau de bord : flux on-chain du noeud, volumes, classificat
       <span class="filters__cp-row">
         <input id="counterparty-input" type="text" name="counterparty" value="<?= htmlspecialchars($counterparty) ?>" placeholder="0x…" autocomplete="off">
         <button type="button" class="btn-copy" data-copy-target="#counterparty-input" data-copy-label="Copier" title="Copier l’adresse saisie">Copier</button>
+      </span>
+    </label>
+    <label class="filters__cp">Recherche par montant (Vault v1 ≈ €)
+      <span class="filters__cp-row">
+        <input type="number" name="vault_target_eur" value="<?= htmlspecialchars($vaultTargetEur) ?>" placeholder="ex: 1200" min="0" step="1">
+        <input type="number" name="vault_tolerance_eur" value="<?= htmlspecialchars($vaultToleranceEur) ?>" placeholder="marge ± € (optionnel)" min="0" step="1">
       </span>
     </label>
     <button type="submit">Filtrer</button>
