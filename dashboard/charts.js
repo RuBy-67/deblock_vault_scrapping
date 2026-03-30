@@ -12,6 +12,9 @@
     'chartPaymentTopupCount',
     'chartPaymentWeekly',
     'chartVaultDaily',
+    'chartVaultDeltaDaily',
+    'chartGasDaily',
+    'chartMintDaily',
   ];
 
   function destroyChartsOnCanvases() {
@@ -42,6 +45,9 @@
     var weeklyPay = payload.weeklyPay || [];
     var weeklyMeta = payload.weeklyMeta || {};
     var vaultDaily = payload.vaultDaily || [];
+    var vaultDeltaDaily = payload.vaultDeltaDaily || [];
+    var gasDaily = payload.gasDaily || [];
+    var mintDaily = payload.mintDaily || [];
 
     var fmtEur = function (v) {
       return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0, minimumFractionDigits: 0 }).format(v) + '\u202F€';
@@ -51,6 +57,13 @@
     };
     var fmtN = function (v) {
       return new Intl.NumberFormat('fr-FR').format(v);
+    };
+
+    var fmtEth = function (v) {
+      return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 6, minimumFractionDigits: 0 }).format(v) + '\u202FETH';
+    };
+    var fmtEthAxis = function (v) {
+      return new Intl.NumberFormat('fr-FR', { notation: 'compact', compactDisplay: 'short', maximumFractionDigits: 2, minimumFractionDigits: 0 }).format(v) + '\u202FETH';
     };
 
     destroyChartsOnCanvases();
@@ -257,7 +270,7 @@
         },
       });
 
-      // Petite courbe "Vault — v1" dans la carte du haut.
+      // Petite courbe net (Top-up - Payment), cumulée dans le temps, dans la carte du haut.
       var elVault = document.getElementById('chartVaultDaily');
       if (elVault && vaultDaily && vaultDaily.length) {
         new Chart(elVault, {
@@ -268,7 +281,7 @@
             }),
             datasets: [
               {
-                label: 'Vault v1 (≈ €)',
+                label: 'Top-up − Payment (cumul v1) (≈ €)',
                 data: vaultDaily.map(function (d) {
                   return d.vaultEur;
                 }),
@@ -277,6 +290,61 @@
                 fill: true,
                 tension: 0.25,
                 pointRadius: 1.6,
+                pointHoverRadius: 3,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function (ctx) {
+                    var v = ctx.parsed.y;
+                    if (v == null) return ctx.dataset.label;
+                    return ctx.dataset.label + ' : ' + fmtEur(v);
+                  },
+                },
+              },
+            },
+            scales: {
+              x: {
+                ticks: { maxRotation: 45, minRotation: 0 },
+                grid: { display: false },
+              },
+              y: {
+                beginAtZero: false,
+                ticks: { callback: function (val) { return fmtEurAxis(val); } },
+                grid: { color: 'rgba(0,0,0,0.06)' },
+              },
+            },
+          },
+        });
+      }
+
+      // Graphique "écart journalier" : top_up - payment (v1) pour chaque jour.
+      var elVaultDelta = document.getElementById('chartVaultDeltaDaily');
+      if (elVaultDelta && vaultDeltaDaily && vaultDeltaDaily.length) {
+        new Chart(elVaultDelta, {
+          type: 'line',
+          data: {
+            labels: vaultDeltaDaily.map(function (d) {
+              return d.day;
+            }),
+            datasets: [
+              {
+                label: 'Top-up − Payment (delta/jour) (v1) (≈ €)',
+                data: vaultDeltaDaily.map(function (d) {
+                  return d.vaultDeltaEur;
+                }),
+                borderColor: 'rgba(234, 88, 12, 0.95)',
+                backgroundColor: 'rgba(234, 88, 12, 0.10)',
+                fill: true,
+                tension: 0.25,
+                pointRadius: 1.4,
                 pointHoverRadius: 3,
               },
             ],
@@ -412,6 +480,110 @@
           },
         },
       });
+    }
+
+    if (gasDaily && gasDaily.length) {
+      var elGas = document.getElementById('chartGasDaily');
+      if (elGas) {
+        new Chart(elGas, {
+          type: 'line',
+          data: {
+            labels: gasDaily.map(function (d) {
+              return d.day;
+            }),
+            datasets: [
+              {
+                label: 'Gas (ETH) cumulé (progression)',
+                data: gasDaily.map(function (d) {
+                  return d.gasEth;
+                }),
+                borderColor: '#0d9488',
+                backgroundColor: 'rgba(13, 148, 136, 0.12)',
+                fill: true,
+                tension: 0.25,
+                pointRadius: 1.4,
+                pointHoverRadius: 3,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function (ctx) {
+                    var v = ctx.parsed.y;
+                    if (v == null) return ctx.dataset.label;
+                    return ctx.dataset.label + ' : ' + fmtEth(v);
+                  },
+                },
+              },
+            },
+            scales: {
+              x: { ticks: { maxRotation: 45, minRotation: 0 }, grid: { display: false } },
+              y: {
+                beginAtZero: true,
+                ticks: { callback: function (val) { return fmtEthAxis(val); } },
+              },
+            },
+          },
+        });
+      }
+    }
+
+    if (mintDaily && mintDaily.length) {
+      var elMint = document.getElementById('chartMintDaily');
+      if (elMint) {
+        new Chart(elMint, {
+          type: 'line',
+          data: {
+            labels: mintDaily.map(function (d) {
+              return d.day;
+            }),
+            datasets: [
+              {
+                label: 'Mint vers le noeud (≈ €) par jour',
+                data: mintDaily.map(function (d) {
+                  return d.mintEur;
+                }),
+                borderColor: '#16a34a',
+                backgroundColor: 'rgba(22, 163, 74, 0.12)',
+                fill: true,
+                tension: 0.25,
+                pointRadius: 1.4,
+                pointHoverRadius: 3,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function (ctx) {
+                    var v = ctx.parsed.y;
+                    if (v == null) return ctx.dataset.label;
+                    return ctx.dataset.label + ' : ' + fmtEur(v);
+                  },
+                },
+              },
+            },
+            scales: {
+              x: { ticks: { maxRotation: 45, minRotation: 0 }, grid: { display: false } },
+              y: {
+                beginAtZero: true,
+                ticks: { callback: function (val) { return fmtEurAxis(val); } },
+              },
+            },
+          },
+        });
+      }
     }
 
     if (weeklyPay.length) {

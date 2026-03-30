@@ -29,7 +29,7 @@ declare(strict_types=1);
         <canvas id="chartActiviteJour" aria-label="Nombre de transferts par jour"></canvas>
       </div>
       <h3 class="chart-title">Volume total traité par le noeud (≈ € / jour)</h3>
-      <p class="muted chart-caption">Somme des montants de toutes les lignes <code>raw_transfers</code> ce jour (chaque transfert compté une fois, IN et OUT inclus). Hors mint/burn <code>0x0</code>. Mêmes filtres dates / contrepartie que le formulaire.</p>
+      <p class="muted chart-caption">Somme des montants de toutes les lignes <code>raw_transfers</code> ce jour (chaque transfert compté une fois, IN et OUT inclus). Hors mint/burn <code>0x0</code>. Mêmes filtres dates / Wallet que le formulaire.</p>
       <div class="chart-canvas-wrap">
         <canvas id="chartNodeVolumeJour" aria-label="Volume total jeton traité par le noeud par jour"></canvas>
       </div>

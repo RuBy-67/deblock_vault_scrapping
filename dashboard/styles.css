@@ -346,6 +346,11 @@ body {
   margin-top: 0.65rem;
 }
 
+.vault-mini-chart--delta {
+  height: min(140px, 18vh);
+  margin-top: 0.45rem;
+}
+
 .table-wrap {
   overflow-x: auto;
 }

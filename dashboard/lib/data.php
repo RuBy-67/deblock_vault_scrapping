@@ -241,6 +241,7 @@ function monitor_dashboard_collect_heavy(PDO $pdo, array $f, array $cfg, ?array 
     $dateFrom = $f['dateFrom'];
     $dateTo = $f['dateTo'];
     $counterparty = $f['counterparty'];
+    $zeroAddr = $f['zeroAddr'];
 
     if ($reuseByType !== null) {
         $byType = $reuseByType;
@@ -284,6 +285,55 @@ ORDER BY day ASC
     $stDaily = $pdo->prepare($sqlDaily);
     $stDaily->execute($params);
     $dailyRows = $stDaily->fetchAll();
+
+    // Gas (ETH) total par jour (coût ETH de tx, sans doublons par tx_hash).
+    $sqlDailyGas = "
+SELECT
+  DATE(t.block_time) AS day,
+  SUM(t.cost_eth) AS gas_eth
+FROM (
+  SELECT
+    tg.tx_hash,
+    MIN(rt.block_time) AS block_time,
+    tg.cost_eth
+  FROM tx_gas tg
+  JOIN raw_transfers rt ON rt.tx_hash = tg.tx_hash
+  LEFT JOIN classified_events ce ON ce.raw_transfer_id = rt.id
+  WHERE $w
+    $cpSql
+    $excludeZeroPeerSql
+  GROUP BY tg.tx_hash
+) t
+GROUP BY DATE(t.block_time)
+ORDER BY day ASC
+";
+    $stDailyGas = $pdo->prepare($sqlDailyGas);
+    $stDailyGas->execute($params);
+    $gasDailyRows = $stDailyGas->fetchAll();
+
+    // Mint "vers le noeud" par jour (FROM = 0x0, direction in).
+    $paramsMint = [];
+    if ($dateFrom !== '') {
+        $paramsMint[] = $dateFrom . ' 00:00:00';
+    }
+    if ($dateTo !== '') {
+        $paramsMint[] = $dateTo . ' 23:59:59';
+    }
+    $sqlDailyMint = "
+SELECT
+  DATE(rt.block_time) AS day,
+  SUM(CASE WHEN rt.direction = 'in' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE 0 END) AS sum_mint_raw,
+  COUNT(*) AS n_mint_tx
+FROM raw_transfers rt
+WHERE $w
+  AND rt.direction = 'in'
+  AND LOWER(rt.from_addr) = '$zeroAddr'
+GROUP BY DATE(rt.block_time)
+ORDER BY day ASC
+";
+    $stDailyMint = $pdo->prepare($sqlDailyMint);
+    $stDailyMint->execute($paramsMint);
+    $mintDailyRows = $stDailyMint->fetchAll();
 
     $sqlDailyInterest = "
 SELECT
@@ -442,6 +492,28 @@ LIMIT 50
         ];
     }
 
+    // Gas (ETH) cumulé au fil du temps (progression).
+    $chartGasDaily = [];
+    $gasRunningEth = 0.0;
+    foreach ($gasDailyRows as $gr) {
+        $gasRunningEth += (float) ($gr['gas_eth'] ?? 0);
+        $chartGasDaily[] = [
+            'day' => (string) ($gr['day'] ?? ''),
+            'gasEth' => $gasRunningEth,
+        ];
+    }
+
+    $chartMintDaily = [];
+    foreach ($mintDailyRows as $mdr) {
+        $d = (string) ($mdr['day'] ?? '');
+        $sumMintRaw = normalize_amount_raw((string) ($mdr['sum_mint_raw'] ?? '0'));
+        $chartMintDaily[] = [
+            'day' => $d,
+            'mintEur' => raw_wei_to_float_eur($sumMintRaw),
+            'nMintTx' => (int) ($mdr['n_mint_tx'] ?? 0),
+        ];
+    }
+
     $interestByDay = [];
     foreach ($interestDailyRows as $idr) {
         $dInt = (string) ($idr['day'] ?? '');
@@ -526,14 +598,24 @@ LIMIT 50
         ];
     }
 
-    // Série v1 du "vault" par jour (approx): top_up - payment.
+    // Série v1 :
+    // - delta jour : top_up - payment
+    // - cumul fil du temps : somme des deltas depuis le début du filtre
     $chartVaultDaily = [];
+    $chartVaultDeltaDaily = [];
+    $vaultRunningEur = 0.0;
     foreach ($chartDaily as $row) {
         $d = $row['day'];
         $c = $classByDay[$d] ?? ['payment' => 0.0, 'top_up' => 0.0];
+        $deltaEur = (float) ($c['top_up'] ?? 0.0) - (float) ($c['payment'] ?? 0.0);
+        $vaultRunningEur += $deltaEur;
+        $chartVaultDeltaDaily[] = [
+            'day' => $d,
+            'vaultDeltaEur' => $deltaEur,
+        ];
         $chartVaultDaily[] = [
             'day' => $d,
-            'vaultEur' => (float) ($c['top_up'] ?? 0.0) - (float) ($c['payment'] ?? 0.0),
+            'vaultEur' => $vaultRunningEur,
         ];
     }
 
@@ -655,6 +737,9 @@ LIMIT 50
         'nodeVolumeDaily' => $chartNodeVolumeDaily,
         'paymentAvgDaily' => $chartPaymentAvgDaily,
         'vaultDaily' => $chartVaultDaily,
+        'vaultDeltaDaily' => $chartVaultDeltaDaily,
+        'gasDaily' => $chartGasDaily,
+        'mintDaily' => $chartMintDaily,
         'weeklyPay' => $chartWeeklyPayment,
         'weeklyMeta' => [
             'avgActiveEur' => $avgPayActiveWeekEur,
@@ -675,6 +760,8 @@ LIMIT 50
         'topCounterparties' => $topCounterparties,
         'chartDaily' => $chartDaily,
         'hasWeeklyPaymentChart' => $hasWeeklyPaymentChart,
+        'hasGasDailyChart' => $chartGasDaily !== [],
+        'hasMintDailyChart' => $chartMintDaily !== [],
         'chartPayloadJson' => $chartPayloadJson,
         'nDistinctPayersPayment' => $nDistinctPayersPayment,
         'totalPaymentPeriodRaw' => $totalPaymentPeriodRaw,

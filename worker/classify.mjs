@@ -11,7 +11,7 @@
  *
  * Voir CLASSIFY_FULL_REBUILD dans .env (recalcule complet vs incrémental).
  *
- * Perf : index par contrepartie + fenêtre temporelle (recherche dichotomique) — O(n log n)
+ * Perf : index par Wallet + fenêtre temporelle (recherche dichotomique) — O(n log n)
  * au lieu de comparer chaque ligne à toute la table.
  */
 import { config, assertConfig } from "./lib/config.mjs";

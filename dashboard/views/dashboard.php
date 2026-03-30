@@ -52,7 +52,7 @@ $ogDescription = 'Tableau de bord : flux on-chain du noeud, volumes, classificat
   <form class="filters" method="get">
     <label>Du <input type="date" name="date_from" value="<?= htmlspecialchars($dateFrom) ?>"></label>
     <label>Au <input type="date" name="date_to" value="<?= htmlspecialchars($dateTo) ?>"></label>
-    <label class="filters__cp">Contrepartie (0x…)
+    <label class="filters__cp">Wallet (0x…)
       <span class="filters__cp-row">
         <input id="counterparty-input" type="text" name="counterparty" value="<?= htmlspecialchars($counterparty) ?>" placeholder="0x…" autocomplete="off">
         <button type="button" class="btn-copy" data-copy-target="#counterparty-input" data-copy-label="Copier" title="Copier l’adresse saisie">Copier</button>

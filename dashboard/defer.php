@@ -56,7 +56,7 @@ try {
     require __DIR__ . '/views/deferred_panel.php';
     $html = ob_get_clean();
 
-    $initCharts = $chartDaily !== [] || $hasWeeklyPaymentChart;
+    $initCharts = $chartDaily !== [] || $hasWeeklyPaymentChart || ($hasGasDailyChart ?? false) || ($hasMintDailyChart ?? false);
 
     echo json_encode(
         [
