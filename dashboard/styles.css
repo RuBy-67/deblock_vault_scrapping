@@ -339,6 +339,13 @@ body {
   height: min(260px, 38vh);
 }
 
+.vault-mini-chart {
+  position: relative;
+  height: min(180px, 22vh);
+  width: 100%;
+  margin-top: 0.65rem;
+}
+
 .table-wrap {
   overflow-x: auto;
 }

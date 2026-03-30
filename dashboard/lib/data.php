@@ -526,6 +526,17 @@ LIMIT 50
         ];
     }
 
+    // Série v1 du "vault" par jour (approx): top_up - payment.
+    $chartVaultDaily = [];
+    foreach ($chartDaily as $row) {
+        $d = $row['day'];
+        $c = $classByDay[$d] ?? ['payment' => 0.0, 'top_up' => 0.0];
+        $chartVaultDaily[] = [
+            'day' => $d,
+            'vaultEur' => (float) ($c['top_up'] ?? 0.0) - (float) ($c['payment'] ?? 0.0),
+        ];
+    }
+
     $chartPaymentAvgDaily = [];
     foreach ($chartClassDaily as $cd) {
         $nP = (int) ($cd['nPayment'] ?? 0);
@@ -643,6 +654,7 @@ LIMIT 50
         'interestDaily' => $chartInterestDaily,
         'nodeVolumeDaily' => $chartNodeVolumeDaily,
         'paymentAvgDaily' => $chartPaymentAvgDaily,
+        'vaultDaily' => $chartVaultDaily,
         'weeklyPay' => $chartWeeklyPayment,
         'weeklyMeta' => [
             'avgActiveEur' => $avgPayActiveWeekEur,

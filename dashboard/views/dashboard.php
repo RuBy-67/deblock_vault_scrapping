@@ -10,7 +10,7 @@ declare(strict_types=1);
 /** @var string $dashboardOgBase */
 /** @var string $dashboardOgPage */
 /** @var string $dashboardOgImage */
-$ogTitle = 'Monitoring noeud EURCV — Deblock';
+$ogTitle = 'Monitoring noeud EURCV - SG — Techblock';
 $ogDescription = 'Tableau de bord : flux on-chain du noeud, volumes, classification v1 (payment / top_up / interest), graphiques et coûts (frais estimés, gas). Filtres par dates et par contrepartie.';
 ?>
 <!DOCTYPE html>
@@ -40,12 +40,8 @@ $ogDescription = 'Tableau de bord : flux on-chain du noeud, volumes, classificat
   <header class="header">
     <div class="header__brand">
       <img src="lib/deblock.png" alt="Deblock" class="header__logo" width="44" height="44" decoding="async">
-      <h1>Monitoring noeud</h1>
+      <h1>Monitoring noeud SG- Techblock</h1>
     </div>
-    <p class="muted">
-      <strong>Même périmètre tout le temps</strong> (worker + ce tableau) : adresse noeud et contrat définis dans <code>.env</code>.
-      Pas d’autre token ni d’autre noeud dans ces chiffres.
-    </p>
     <p class="muted">
       Noeud : <code><?= htmlspecialchars($cfg['node_address']) ?></code>
       — Contrat token : <code><?= htmlspecialchars($cfg['token_contract']) ?></code>
@@ -64,9 +60,6 @@ $ogDescription = 'Tableau de bord : flux on-chain du noeud, volumes, classificat
     </label>
     <button type="submit">Filtrer</button>
   </form>
-  <p class="muted" style="margin:-0.5rem 0 1rem; max-width:48rem">
-    Les chiffres des cartes et le détail (graphiques, tableaux) se chargent en arrière-plan après l’affichage de la page. Mêmes filtres <strong>dates / contrepartie</strong> partout.
-  </p>
 
   <?php require __DIR__ . '/cards_pending.php'; ?>
 

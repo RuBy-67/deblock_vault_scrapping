@@ -138,10 +138,7 @@ declare(strict_types=1);
 
   <?php if ($counterparty === '') : ?>
   <details class="panel panel-details">
-    <summary class="panel-details__summary">Contreparties les plus actives (corrélation « infra »)</summary>
-    <p class="muted panel-details__intro">
-      Adresse « de l’autre côté » du <code>Transfer</code> par rapport au noeud (<strong>0x0 exclu</strong> — voir encart mint/burn). Une même adresse avec <strong>très nombreux</strong> événements sur la période ou sur toute la plage filtrée ressemble souvent à un <strong>contrat, relayer ou trésor protocolaire</strong> plutôt qu’un portefeuille retail — utile pour expliquer un IN/OUT équilibré au quotidien alors que les gros <strong>dépôts utilisateurs</strong> peuvent être plus <strong>groupés</strong> (ex. début mars). Compare avec Etherscan / la doc des rôles d’adresses.
-    </p>
+    <summary class="panel-details__summary">Adresses les plus actives, exclus mint/burn <code>0x0</code></summary>
     <div class="table-wrap">
       <table>
         <thead>

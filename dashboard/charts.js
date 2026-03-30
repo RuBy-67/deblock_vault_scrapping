@@ -11,6 +11,7 @@
     'chartPaymentAvgDaily',
     'chartPaymentTopupCount',
     'chartPaymentWeekly',
+    'chartVaultDaily',
   ];
 
   function destroyChartsOnCanvases() {
@@ -40,6 +41,7 @@
     var paymentAvgDaily = payload.paymentAvgDaily || [];
     var weeklyPay = payload.weeklyPay || [];
     var weeklyMeta = payload.weeklyMeta || {};
+    var vaultDaily = payload.vaultDaily || [];
 
     var fmtEur = function (v) {
       return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0, minimumFractionDigits: 0 }).format(v) + '\u202F€';
@@ -254,6 +256,61 @@
           },
         },
       });
+
+      // Petite courbe "Vault — v1" dans la carte du haut.
+      var elVault = document.getElementById('chartVaultDaily');
+      if (elVault && vaultDaily && vaultDaily.length) {
+        new Chart(elVault, {
+          type: 'line',
+          data: {
+            labels: vaultDaily.map(function (d) {
+              return d.day;
+            }),
+            datasets: [
+              {
+                label: 'Vault v1 (≈ €)',
+                data: vaultDaily.map(function (d) {
+                  return d.vaultEur;
+                }),
+                borderColor: 'rgba(37, 99, 235, 0.95)',
+                backgroundColor: 'rgba(37, 99, 235, 0.12)',
+                fill: true,
+                tension: 0.25,
+                pointRadius: 1.6,
+                pointHoverRadius: 3,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function (ctx) {
+                    var v = ctx.parsed.y;
+                    if (v == null) return ctx.dataset.label;
+                    return ctx.dataset.label + ' : ' + fmtEur(v);
+                  },
+                },
+              },
+            },
+            scales: {
+              x: {
+                ticks: { maxRotation: 45, minRotation: 0 },
+                grid: { display: false },
+              },
+              y: {
+                beginAtZero: false,
+                ticks: { callback: function (val) { return fmtEurAxis(val); } },
+                grid: { color: 'rgba(0,0,0,0.06)' },
+              },
+            },
+          },
+        });
+      }
 
       new Chart(document.getElementById('chartPaymentAvgDaily'), {
         type: 'line',

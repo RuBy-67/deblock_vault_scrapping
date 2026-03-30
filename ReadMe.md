@@ -2,6 +2,9 @@
 
 ## Pipeline
 
+Disponible =>
+https://deblock-vault.rb-rubydev.fr/dashboard/
+
 1. **`npm run sync`** (`worker/sync.mjs`) — lit le `.env` à la **racine** du projet.
    - Requête les logs `Transfer` du **`TOKEN_CONTRACT`** où **`NODE_ADDRESS`** est `from` ou `to`.
    - Écrit **`raw_transfers`** (`tx_hash`, `log_index`, `block_number`, `block_time`, `from_addr`, `to_addr`, **`amount_raw`**, `direction` in/out).

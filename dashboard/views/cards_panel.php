@@ -65,11 +65,14 @@ declare(strict_types=1);
     <p class="metric-one-line" style="margin-top:0.25rem">
       <strong style="font-size:1.15rem"><?= htmlspecialchars(fmt_eur_signed_raw($vaultApproxBizRaw)) ?></strong>
     </p>
-    <p class="muted" style="font-size:0.85rem;margin:0.5rem 0 0;line-height:1.4">
+    <div class="vault-mini-chart" aria-label="Evolution du montant du vault (v1) par jour">
+      <canvas id="chartVaultDaily" aria-label="Evolution du montant du vault (v1) par jour"></canvas>
+    </div>
+    <p class="muted" style="font-size:0.85rem;margin:0.45rem 0 0;line-height:1.4">
       <strong>top_up</strong> (sorties noeud) <strong>−</strong> <strong>payment</strong> (entrées typées) sur la période / filtre :
       <?= htmlspecialchars(fmt_eur($topUpSumRaw)) ?> − <?= htmlspecialchars(fmt_eur($paymentSumRaw)) ?>.
     </p>
-    <p class="card-help">Vue métier approximative : retraits classés moins dépôts classés. N’inclut pas <code>interest</code>, <code>unknown</code>, ni mint/burn <code>0x0</code> hors classification. Peut différer du solde on-chain.</p>
+    <p class="card-help">Vue métier approximative : retraits classés moins dépôts classés. N’inclut pas <code>interest</code>, <code>unknown</code>, ni mint/burn <code>0x0</code> hors classification. Peut différer du solde on-chain réel (il est déduit).</p>
   </div>
   <div class="card">
     <h3>Coûts période</h3>
