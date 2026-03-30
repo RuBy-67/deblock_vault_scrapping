@@ -13,7 +13,7 @@ declare(strict_types=1);
     <p class="metric-pending muted">Calcul en cours…</p>
   </div>
   <div class="card">
-    <h3>Vault — ordre de grandeur (v1)</h3>
+    <h3>Vault ordre de grandeur (v1)</h3>
     <p class="metric-pending muted">Calcul en cours…</p>
   </div>
   <div class="card">

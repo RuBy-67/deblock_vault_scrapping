@@ -35,7 +35,7 @@ function monitor_load_env(string $rootDir): array
         'db_pass' => $g('MYSQL_PASSWORD', ''),
         'node_address' => strtolower($g('NODE_ADDRESS', '0x4d2fb5f8ec243fde4df1a9678b82238570c7e0e4')),
         'token_contract' => strtolower($g('TOKEN_CONTRACT', '0xbeef007ecfbfdf9b919d0050821a9b6dbd634ff0')),
-        /** URL publique du dossier dashboard (https://exemple.com/chemin/dashboard), sans slash final — pour aperçus Discord / Open Graph derrière proxy. */
+        /** URL publique du dossier dashboard (https://exemple.com/chemin/dashboard), sans slash final  pour aperçus Discord / Open Graph derrière proxy. */
         'public_base_url' => trim($g('DASHBOARD_PUBLIC_URL', '')),
     ];
 }

@@ -10,7 +10,7 @@ declare(strict_types=1);
 /** @var string $dashboardOgBase */
 /** @var string $dashboardOgPage */
 /** @var string $dashboardOgImage */
-$ogTitle = 'Monitoring noeud EURCV - SG — Techblock';
+$ogTitle = 'Monitoring noeud EURCV - SG -Techblock';
 $ogDescription = 'Tableau de bord : flux on-chain du noeud, volumes, classification v1 (payment / top_up / interest), graphiques et coûts (frais estimés, gas). Filtres par dates et par contrepartie.';
 ?>
 <!DOCTYPE html>
@@ -21,7 +21,7 @@ $ogDescription = 'Tableau de bord : flux on-chain du noeud, volumes, classificat
   <title>Monitoring noeud EURCV</title>
   <meta name="description" content="<?= htmlspecialchars($ogDescription) ?>">
   <meta property="og:type" content="website">
-  <meta property="og:site_name" content="Deblock — monitoring noeud">
+  <meta property="og:site_name" content="Deblock, monitoring noeud">
   <meta property="og:title" content="<?= htmlspecialchars($ogTitle) ?>">
   <meta property="og:description" content="<?= htmlspecialchars($ogDescription) ?>">
   <meta property="og:url" content="<?= htmlspecialchars($dashboardOgPage) ?>">
@@ -44,8 +44,8 @@ $ogDescription = 'Tableau de bord : flux on-chain du noeud, volumes, classificat
     </div>
     <p class="muted">
       Noeud : <code><?= htmlspecialchars($cfg['node_address']) ?></code>
-      — Contrat token : <code><?= htmlspecialchars($cfg['token_contract']) ?></code>
-      — Montants jeton affichés comme <strong>équivalent euro</strong> (1 unité sur chaîne ≈ 1 €).
+      Contrat token : <code><?= htmlspecialchars($cfg['token_contract']) ?></code>
+      Montants jeton affichés comme <strong>équivalent euro</strong> (1 unité sur chaîne ≈ 1 €).
     </p>
   </header>
 
@@ -107,7 +107,7 @@ $ogDescription = 'Tableau de bord : flux on-chain du noeud, volumes, classificat
       var cm = document.getElementById('monitor-cards-mount');
       if (cm) {
         cm.querySelectorAll('.metric-pending').forEach(function (p) {
-          p.textContent = 'Indisponible — rechargez la page.';
+          p.textContent = 'Indisponible rechargez la page.';
           p.classList.add('metric-pending--error');
         });
         cm.removeAttribute('aria-busy');

@@ -1,5 +1,5 @@
 /**
- * Graphiques Chart.js — données injectées via #monitor-chart-payload (JSON).
+ * Graphiques Chart.js  données injectées via #monitor-chart-payload (JSON).
  * Ré-exécutable après chargement différé (destroy des instances existantes).
  */
 (function () {
@@ -11,6 +11,7 @@
     'chartPaymentAvgDaily',
     'chartPaymentTopupCount',
     'chartPaymentWeekly',
+    'chartPaymentTopupCombined',
     'chartVaultDaily',
     'chartVaultDeltaDaily',
     'chartGasDaily',
@@ -212,63 +213,99 @@
         },
       });
 
-      new Chart(document.getElementById('chartPaymentTopupVolume'), {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [
-            {
-              label: 'Payment',
-              data: dailyClass.map(function (d) {
-                return d.payment;
-              }),
-              borderColor: '#7c3aed',
-              backgroundColor: 'rgba(124, 58, 237, 0.12)',
-              fill: true,
-              tension: 0.2,
-              pointRadius: 2,
-            },
-            {
-              label: 'Top up',
-              data: dailyClass.map(function (d) {
-                return d.top_up;
-              }),
-              borderColor: '#ea580c',
-              backgroundColor: 'rgba(234, 88, 12, 0.12)',
-              fill: true,
-              tension: 0.2,
-              pointRadius: 2,
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          interaction: { mode: 'index', intersect: false },
-          plugins: {
-            legend: { position: 'top' },
-            tooltip: {
-              callbacks: {
-                label: function (ctx) {
-                  var v = ctx.parsed.y;
-                  if (v == null) return ctx.dataset.label;
-                  return ctx.dataset.label + ' : ' + fmtEur(v);
+      var elPayTopupCombined = document.getElementById('chartPaymentTopupCombined');
+      if (elPayTopupCombined && dailyClass && dailyClass.length) {
+        new Chart(elPayTopupCombined, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                type: 'line',
+                yAxisID: 'yVolume',
+                label: 'Payment (≈ €)',
+                data: dailyClass.map(function (d) {
+                  return d.payment;
+                }),
+                borderColor: '#7c3aed',
+                backgroundColor: 'rgba(124, 58, 237, 0.12)',
+                fill: true,
+                tension: 0.2,
+                pointRadius: 2,
+              },
+              {
+                type: 'line',
+                yAxisID: 'yVolume',
+                label: 'Top up (≈ €)',
+                data: dailyClass.map(function (d) {
+                  return d.top_up;
+                }),
+                borderColor: '#ea580c',
+                backgroundColor: 'rgba(234, 88, 12, 0.12)',
+                fill: true,
+                tension: 0.2,
+                pointRadius: 2,
+              },
+              {
+                type: 'bar',
+                yAxisID: 'yCount',
+                label: 'Payment (#)',
+                data: dailyClass.map(function (d) {
+                  return d.nPayment;
+                }),
+                backgroundColor: 'rgba(124, 58, 237, 0.55)',
+                borderColor: 'rgba(124, 58, 237, 0.95)',
+                borderWidth: 1,
+              },
+              {
+                type: 'bar',
+                yAxisID: 'yCount',
+                label: 'Top up (#)',
+                data: dailyClass.map(function (d) {
+                  return d.nTopUp;
+                }),
+                backgroundColor: 'rgba(234, 88, 12, 0.55)',
+                borderColor: 'rgba(234, 88, 12, 0.95)',
+                borderWidth: 1,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { position: 'top' },
+              tooltip: {
+                callbacks: {
+                  label: function (ctx) {
+                    var v = ctx.parsed.y;
+                    if (v == null) return ctx.dataset.label;
+                    if (ctx.dataset.yAxisID === 'yVolume') {
+                      return ctx.dataset.label + ' : ' + fmtEur(v);
+                    }
+                    return ctx.dataset.label + ' : ' + fmtN(v);
+                  },
                 },
               },
             },
-          },
-          scales: {
-            x: { ticks: { maxRotation: 45, minRotation: 0 } },
-            y: {
-              ticks: {
-                callback: function (val) {
-                  return fmtEurAxis(val);
-                },
+            scales: {
+              x: { ticks: { maxRotation: 45, minRotation: 0 }, grid: { display: false } },
+              yVolume: {
+                position: 'left',
+                beginAtZero: true,
+                ticks: { callback: function (val) { return fmtEurAxis(val); } },
+              },
+              yCount: {
+                position: 'right',
+                beginAtZero: true,
+                grid: { drawOnChartArea: false },
+                ticks: { callback: function (val) { return fmtN(val); } },
               },
             },
           },
-        },
-      });
+        });
+      }
 
       // Petite courbe net (Top-up - Payment), cumulée dans le temps, dans la carte du haut.
       var elVault = document.getElementById('chartVaultDaily');
@@ -434,7 +471,7 @@
         },
       });
 
-      new Chart(document.getElementById('chartPaymentTopupCount'), {
+      var elPayTopupCount = document.getElementById('chartPaymentTopupCount'); if (elPayTopupCount) new Chart(elPayTopupCount, {
         type: 'bar',
         data: {
           labels: labels,

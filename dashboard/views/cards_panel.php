@@ -24,7 +24,7 @@ declare(strict_types=1);
     <h3>Sur le noeud (total chaîne)</h3>
     <dl class="metric-pair">
       <div>
-        <dt>Reçu — IN</dt>
+        <dt>Reçu IN</dt>
         <dd><strong><?= htmlspecialchars(fmt_eur($inTotalRaw)) ?></strong></dd>
         <?php if ($fluxCardShowOnchainSplit) : ?>
         <dd class="metric-note">dont <strong><?= htmlspecialchars(fmt_eur($inMintRaw)) ?></strong> mint (<code>0x0</code>) et <strong><?= htmlspecialchars(fmt_eur($inUserRaw)) ?></strong> depuis d’autres adresses.</dd>
@@ -33,7 +33,7 @@ declare(strict_types=1);
         <?php endif; ?>
       </div>
       <div>
-        <dt>Envoyé — OUT</dt>
+        <dt>Envoyé OUT</dt>
         <dd><strong><?= htmlspecialchars(fmt_eur($outTotalRaw)) ?></strong></dd>
         <?php if ($fluxCardShowOnchainSplit) : ?>
         <dd class="metric-note">dont <strong><?= htmlspecialchars(fmt_eur($outBurnRaw)) ?></strong> burn (<code>0x0</code>) et <strong><?= htmlspecialchars(fmt_eur($outUserRaw)) ?></strong> vers d’autres adresses.</dd>
@@ -61,14 +61,14 @@ declare(strict_types=1);
     <p class="card-help">Sous-ensemble des IN/OUT : règles v1 + lignes <code>unknown</code> non incluses. Croise avec le tableau « Par type » dessous.</p>
   </div>
   <div class="card">
-    <h3>Vault — ordre de grandeur (v1)</h3>
+    <h3>Vault ordre de grandeur (v1)</h3>
     <p class="metric-one-line" style="margin-top:0.25rem">
       <strong style="font-size:1.15rem"><?= htmlspecialchars(fmt_eur_signed_raw($vaultApproxBizRaw)) ?></strong>
     </p>
     <div class="vault-mini-chart" aria-label="Somme cumulée Top-up moins Payment (v1) par jour">
       <canvas id="chartVaultDaily" aria-label="Evolution du montant du vault (v1) par jour"></canvas>
     </div>
-    <h4 style="margin:0.65rem 0 0.35rem;font-size:0.95rem;font-weight:700;color:#1a1a1a">Flux net (Top-up − Payment)</h4>
+    <h4 style="margin:0.65rem 0 0.35rem;font-size:0.95rem;font-weight:700;color:#1a1a1a">Flux net</h4>
     <div class="vault-mini-chart vault-mini-chart--delta" aria-label="Ecart journalier Top-up moins Payment (v1) par jour">
       <canvas id="chartVaultDeltaDaily" aria-label="Ecart journalier Top-up moins Payment (v1) par jour"></canvas>
     </div>

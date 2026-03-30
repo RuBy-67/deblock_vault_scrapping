@@ -93,7 +93,7 @@ function monitor_cmp_digit_strings(string $a, string $b): int
     return strcmp($a, $b);
 }
 
-/** Somme de deux entiers positifs en notation décimale (sans float — évite 1e+25 → affichage 0). */
+/** Somme de deux entiers positifs en notation décimale (sans float  évite 1e+25 → affichage 0). */
 function monitor_digit_strings_add(string $a, string $b): string
 {
     $a = ltrim($a, '0') ?: '0';

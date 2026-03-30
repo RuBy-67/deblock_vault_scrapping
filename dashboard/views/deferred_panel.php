@@ -16,7 +16,7 @@ declare(strict_types=1);
 /** @var callable(string): string $cpDashboardHref */
 ?>
   <section class="panel chart-panel">
-    <h2>Graphiques — activité par jour</h2>
+    <h2>Graphiques activité par jour</h2>
     <p class="muted" style="margin-top:-0.35rem">
       Basé sur <code>block_time</code> (UTC). Filtres <strong>dates / contrepartie</strong> comme le formulaire.
     </p>
@@ -41,27 +41,24 @@ declare(strict_types=1);
       <p class="muted" style="margin-top:1rem; max-width:52rem">
         <strong>Paiements / top up</strong> : seules les lignes <code>payment</code> et <code>top_up</code> (v1).
       </p>
-      <h3 class="chart-title">Volumes payment / top_up (≈ € par jour)</h3>
-      <div class="chart-canvas-wrap">
-        <canvas id="chartPaymentTopupVolume" aria-label="Volumes payment et top up par jour"></canvas>
+      <h3 class="chart-title">payment / top_up : volume + nombre (≈ € / jour + tx / jour)</h3>
+      <div class="chart-canvas-wrap chart-canvas-wrap--short">
+        <canvas id="chartPaymentTopupCombined" aria-label="payment et top_up : volume (≈ €) et nombre de lignes par jour"></canvas>
       </div>
-      <h3 class="chart-title">Paiement moyen par jour (<code>payment</code> — ticket moyen ≈ €)</h3>
+      <h3 class="chart-title">Paiement moyen par jour (<code>payment</code> ticket moyen ≈ €)</h3>
       <p class="muted chart-caption">Pour chaque jour : somme des montants <code>payment</code> ÷ nombre de lignes <code>payment</code> ce jour-là. Jours sans payment : 0.</p>
       <div class="chart-canvas-wrap chart-canvas-wrap--short">
         <canvas id="chartPaymentAvgDaily" aria-label="Ticket moyen payment par jour"></canvas>
       </div>
-      <h3 class="chart-title">Nombre de payment / top_up par jour</h3>
-      <div class="chart-canvas-wrap chart-canvas-wrap--short">
-        <canvas id="chartPaymentTopupCount" aria-label="Nombre de payment et top up par jour"></canvas>
-      </div>
+      <!-- Graphiques payment/top_up combinés (volume + nombre) au-dessus -->
     <?php endif; ?>
 
-    <h3 class="chart-title" style="margin-top:1.75rem">Paiements (<code>payment</code>) — volume par semaine</h3>
+    <h3 class="chart-title" style="margin-top:1.75rem">Paiements (<code>payment</code>)  volume par semaine</h3>
     <p class="muted chart-caption">Volume classé <code>payment</code> (hors mint <code>0x0</code>), semaine type ISO (<strong>lundi → dimanche</strong>). Côté user, envois <strong>vers le noeud</strong>.</p>
     <?php if ($hasWeeklyPaymentChart) : ?>
       <p class="muted" style="margin-bottom:0.75rem;max-width:52rem">
         <strong>Moyenne</strong> sur semaines où il y a eu au moins un payment : <strong><?= htmlspecialchars(fmt_eur($avgPayActiveWeekRaw)) ?></strong> / sem.
-        — <strong>Étalée sur la plage filtrée</strong> (≈ <?= htmlspecialchars(number_format($weeksInFilterSpan, 1, ',', "\u{202F}")) ?> sem.) : <strong><?= htmlspecialchars(number_format($avgPayCalWeekEur, 2, ',', "\u{202F}")) ?>&nbsp;€</strong> / sem.
+        <strong>Étalée sur la plage filtrée</strong> (≈ <?= htmlspecialchars(number_format($weeksInFilterSpan, 1, ',', "\u{202F}")) ?> sem.) : <strong><?= htmlspecialchars(number_format($avgPayCalWeekEur, 2, ',', "\u{202F}")) ?>&nbsp;€</strong> / sem.
         <?php if ($nDistinctPayersPayment > 0) : ?>
           <br><strong>Moyenne par compte distinct</strong> (toute la période) : <strong><?= htmlspecialchars(fmt_eur($avgPayPerDistinctAccountRaw)) ?></strong>
           sur <strong><?= htmlspecialchars(fmt_int_fr($nDistinctPayersPayment)) ?></strong> adresses ayant au moins un <code>payment</code>
@@ -110,7 +107,7 @@ declare(strict_types=1);
         <div class="insight-detail"><?= htmlspecialchars(fmt_int_fr($totalPaymentTxWeek)) ?> tx · ticket moyen (par tx) <?= htmlspecialchars(fmt_eur($avgTicketPaymentRaw)) ?></div>
       </div>
       <div class="insight-card">
-        <div class="insight-label">Moyenne par compte — <strong>toute la période</strong> (payment)</div>
+        <div class="insight-label">Moyenne par compte <strong>toute la période</strong> (payment)</div>
         <div class="insight-value"><?= $nDistinctPayersPayment > 0 ? htmlspecialchars(fmt_eur($avgPayPerDistinctAccountRaw)) : '—' ?></div>
         <div class="insight-detail"><?= $nDistinctPayersPayment > 0 ? htmlspecialchars(fmt_int_fr($nDistinctPayersPayment)) . ' comptes distincts (contrepartie) · <strong>pas</strong> une moyenne par semaine : c’est total « payment » sur la plage ÷ nb de comptes (chaque adresse comptée 1×). Sur le graphique hebdo : <strong>indigo</strong> = moyenne <strong>par semaine</strong> ; <strong>ligne pointillée</strong> = cette valeur (réf. sur toute la période).' : 'Aucun compte' ?></div>
       </div>

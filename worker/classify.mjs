@@ -11,7 +11,7 @@
  *
  * Voir CLASSIFY_FULL_REBUILD dans .env (recalcule complet vs incrémental).
  *
- * Perf : index par Wallet + fenêtre temporelle (recherche dichotomique) — O(n log n)
+ * Perf : index par Wallet + fenêtre temporelle (recherche dichotomique) O(n log n)
  * au lieu de comparer chaque ligne à toute la table.
  */
 import { config, assertConfig } from "./lib/config.mjs";
@@ -42,7 +42,7 @@ function lcAddr(x) {
   return String(x).toLowerCase();
 }
 
-/** Portefeuille tiers (pas le noeud) pour ce transfert — toujours en minuscules. */
+/** Portefeuille tiers (pas le noeud) pour ce transfert toujours en minuscules. */
 function peerWallet(r) {
   const f = lcAddr(r.from_addr);
   const t = lcAddr(r.to_addr);
@@ -192,7 +192,7 @@ async function replaceClassifications(rows) {
       if (pending === 0) {
         await conn.rollback();
         console.log(
-          "Classify: CLASSIFY_FULL_REBUILD=false — tout est déjà classé, rien à insérer."
+          "Classify: CLASSIFY_FULL_REBUILD=false tout est déjà classé, rien à insérer."
         );
         return;
       }
@@ -229,7 +229,7 @@ async function replaceClassifications(rows) {
         const elapsed = ((Date.now() - classifyLoopStart) / 1000).toFixed(0);
         const pct = ((100 * i) / rows.length).toFixed(1);
         console.log(
-          `Classify: ${i.toLocaleString("fr-FR")}/${rows.length.toLocaleString("fr-FR")} indices (${pct}%) — ${elapsed}s`
+          `Classify: ${i.toLocaleString("fr-FR")}/${rows.length.toLocaleString("fr-FR")} indices (${pct}%) ${elapsed}s`
         );
       }
       if (used.has(i)) continue;
