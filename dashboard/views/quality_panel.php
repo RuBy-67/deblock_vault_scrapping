@@ -44,10 +44,22 @@ declare(strict_types=1);
 
 <section class="panel">
   <h2>Distribution de confiance</h2>
+  <p class="muted panel-details__intro">
+    Chaque ligne classifiée a un score <strong>0–100</strong> en base. Le tableau ci-dessous regroupe ces scores par <strong>tranches</strong> (90–100, 75–89, etc.) sur la période filtrée.
+    Ce n’est <strong>pas</strong> un modèle ML : la règle actuelle (v1) n’utilise que <strong>deux valeurs fixes</strong>.
+  </p>
+  <details class="panel-details">
+    <summary class="panel-details__summary">Comment ce score est-il choisi ?</summary>
+    <div class="muted panel-details__intro">
+      <p><strong>85</strong> — Transferts classés en <strong>interest</strong> avec une jambe jumelle : aller-retour strict même portefeuille (vers le nœud puis retour), dans la fenêtre de temps configurée, montants sous le plafond lié à la « taille » approximative du wallet, au plus <strong>une</strong> paire interest par wallet et par jour calendaire. Les deux jambes ont le même score.</p>
+      <p><strong>60</strong> — <strong>payment</strong> (entrant) ou <strong>top_up</strong> (sortant) lorsqu’aucune paire interest n’a été retenue : classification par défaut à partir du sens du flux seul. Confiance plus basse car la règle est moins contraignante.</p>
+      <p>Avec la v1, on s’attend surtout aux buckets <strong>75–89</strong> (85) et <strong>60–74</strong> (60) ; les autres tranches restent vides sauf données historiques ou évolution des règles.</p>
+    </div>
+  </details>
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th>Bucket</th><th>Nombre</th></tr>
+        <tr><th>Tranche</th><th>Nombre</th></tr>
       </thead>
       <tbody>
         <?php foreach ($qualityConfidenceBuckets as $r) : ?>
