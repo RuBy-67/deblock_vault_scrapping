@@ -33,6 +33,11 @@ const FULL_REBUILD = config.classifyFullRebuild;
 
 /** Affiche une ligne de progression tous les N indices parcourus. */
 const PROGRESS_EVERY = 10_000;
+/** Taille de batch d'insertion SQL (évite les gros paquets MySQL). */
+const INSERT_BATCH_SIZE = Math.max(
+  500,
+  Number(process.env.CLASSIFY_INSERT_BATCH_SIZE ?? "5000")
+);
 
 function absDiff(a, b) {
   const x = BigInt(a);
@@ -292,19 +297,36 @@ async function replaceClassifications(rows, largeWalletSet = new Set()) {
       console.log(
         "Classify: insertion",
         inserts.length.toLocaleString("fr-FR"),
-        "ligne(s) dans classified_events…"
+        "ligne(s) dans classified_events… (batch",
+        INSERT_BATCH_SIZE.toLocaleString("fr-FR"),
+        ")"
       );
-      await conn.query(
-        `INSERT INTO classified_events
-         (raw_transfer_id, counterparty, event_type, paired_transfer_id, fee_token_raw, rule_version, confidence)
-         VALUES ?`,
-        [inserts]
-      );
+      const totalBatches = Math.ceil(inserts.length / INSERT_BATCH_SIZE);
+      for (let b = 0; b < totalBatches; b++) {
+        const start = b * INSERT_BATCH_SIZE;
+        const end = Math.min(inserts.length, start + INSERT_BATCH_SIZE);
+        const chunk = inserts.slice(start, end);
+        await conn.query(
+          `INSERT INTO classified_events
+           (raw_transfer_id, counterparty, event_type, paired_transfer_id, fee_token_raw, rule_version, confidence)
+           VALUES ?`,
+          [chunk]
+        );
+        if ((b + 1) % 20 === 0 || b + 1 === totalBatches) {
+          console.log(
+            `Classify: insert batch ${String(b + 1).padStart(4, " ")}/${totalBatches} (${end.toLocaleString("fr-FR")} lignes)`
+          );
+        }
+      }
     }
 
     await conn.commit();
   } catch (e) {
-    await conn.rollback();
+    try {
+      await conn.rollback();
+    } catch {
+      // Connexion possiblement déjà reset côté MySQL.
+    }
     throw e;
   } finally {
     conn.release();
