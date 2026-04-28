@@ -4,7 +4,8 @@
  *   est toujours payment (IN) ou top_up (OUT), même s’il est petit.
  * - Interest uniquement si aller-retour strict même portefeuille A : IN = A→noeud, OUT = noeud→A
  *   (même adresse A en from du IN et en to du OUT, noeud en to du IN et from du OUT),
- *   dans PAIR_WINDOW_SECONDS, max(des deux montants) <= INTEREST_PAIR_MAX_RAW,
+ *   dans PAIR_WINDOW_SECONDS, avec plafond progressif par "taille wallet" (approx v1),
+ *   et max 1 paire interest par wallet/jour,
  *   et si INTEREST_PAIR_MAX_FEE_BPS > 0 : |a−b|/max(a,b) <= ce ratio (sinon pas de limite sur l’écart)
  *   → interest + fee (confidence 85) pour les deux jambes.
  * - Sinon IN → payment ; OUT → top_up (confidence 60).
@@ -22,9 +23,6 @@ assertConfig();
 const node = config.nodeAddress.toLowerCase();
 const RULE = config.ruleVersion;
 const WINDOW_MS = config.pairWindowSeconds * 1000;
-const PAIR_MAX = config.interestPairMaxRaw;
-const PAIR_MAX_LARGE = config.interestPairMaxRawLarge;
-const LARGE_WALLET_MIN_APPROX = config.interestLargeWalletMinApproxRaw;
 const MAX_FEE_BPS =
   Number.isFinite(config.interestPairMaxFeeBps) && config.interestPairMaxFeeBps > 0
     ? BigInt(Math.floor(config.interestPairMaxFeeBps))
@@ -38,6 +36,17 @@ const INSERT_BATCH_SIZE = Math.max(
   500,
   Number(process.env.CLASSIFY_INSERT_BATCH_SIZE ?? "5000")
 );
+
+// Paliers approx wallet (top_up - payment) -> plafond de jambe interest.
+const TIER_50K = 50000000000000000000000n;
+const TIER_100K = 100000000000000000000000n;
+const TIER_200K = 200000000000000000000000n;
+const TIER_500K = 500000000000000000000000n;
+const LEG_MAX_5 = 5000000000000000000n;
+const LEG_MAX_10 = 10000000000000000000n;
+const LEG_MAX_20 = 20000000000000000000n;
+const LEG_MAX_30 = 30000000000000000000n;
+const LEG_MAX_50 = 50000000000000000000n;
 
 function absDiff(a, b) {
   const x = BigInt(a);
@@ -76,6 +85,10 @@ function isRoundTripSameWallet(r, rj) {
 
 function timeMs(r) {
   return new Date(r.block_time).getTime();
+}
+
+function dayKey(r) {
+  return String(r.block_time || "").slice(0, 10);
 }
 
 /**
@@ -126,11 +139,10 @@ function buildPeerTimeline(rows) {
 }
 
 /**
- * Charge les wallets "gros" selon approx v1 (top_up - payment) depuis raw_transfers.
- * On garde ce set pour appliquer un plafond de jambe différent.
- * @returns {Promise<Set<string>>}
+ * Charge l'approx v1 par wallet depuis raw_transfers (top_up - payment).
+ * @returns {Promise<Map<string, bigint>>}
  */
-async function loadLargeWalletSet() {
+async function loadWalletApproxMap() {
   const pool = getPool();
   const [rows] = await pool.query(
     `SELECT
@@ -141,18 +153,24 @@ async function loadLargeWalletSet() {
      GROUP BY LOWER(CASE WHEN direction = 'in' THEN from_addr ELSE to_addr END)`
   );
 
-  const s = new Set();
+  const m = new Map();
   for (const r of rows) {
     const cp = String(r.cp || "").toLowerCase();
     if (!cp) continue;
     const outRaw = BigInt(String(r.sum_out_raw ?? "0"));
     const inRaw = BigInt(String(r.sum_in_raw ?? "0"));
     const approxRaw = outRaw - inRaw;
-    if (approxRaw >= LARGE_WALLET_MIN_APPROX) {
-      s.add(cp);
-    }
+    m.set(cp, approxRaw);
   }
-  return s;
+  return m;
+}
+
+function pairMaxForApprox(approxRaw) {
+  if (approxRaw >= TIER_500K) return LEG_MAX_50;
+  if (approxRaw >= TIER_200K) return LEG_MAX_30;
+  if (approxRaw >= TIER_100K) return LEG_MAX_20;
+  if (approxRaw >= TIER_50K) return LEG_MAX_10;
+  return LEG_MAX_5;
 }
 
 /**
@@ -201,7 +219,7 @@ async function loadTransfers() {
   return rows;
 }
 
-async function replaceClassifications(rows, largeWalletSet = new Set()) {
+async function replaceClassifications(rows, walletApproxMap = new Map()) {
   const pool = getPool();
   const conn = await pool.getConnection();
   try {
@@ -228,6 +246,7 @@ async function replaceClassifications(rows, largeWalletSet = new Set()) {
     }
 
     const used = new Set();
+    const interestDayUsed = new Set();
 
     /** @type {any[][]} */
     const inserts = [];
@@ -253,7 +272,8 @@ async function replaceClassifications(rows, largeWalletSet = new Set()) {
       const r = rows[i];
       const counterparty = peerWallet(r);
       const amt = BigInt(r.amount_raw);
-      const pairMaxForWallet = largeWalletSet.has(counterparty) ? PAIR_MAX_LARGE : PAIR_MAX;
+      const approxRaw = walletApproxMap.get(counterparty) ?? 0n;
+      const pairMaxForWallet = pairMaxForApprox(approxRaw);
 
       let bestJ = findBestPairIndex(i, rows, used, timeline);
 
@@ -262,6 +282,10 @@ async function replaceClassifications(rows, largeWalletSet = new Set()) {
         const otherAmt = BigInt(rj.amount_raw);
         const maxLeg = amt > otherAmt ? amt : otherAmt;
         if (maxLeg > pairMaxForWallet) {
+          bestJ = -1;
+        } else if (dayKey(r) === "" || dayKey(r) !== dayKey(rj)) {
+          bestJ = -1;
+        } else if (interestDayUsed.has(`${counterparty}|${dayKey(r)}`)) {
           bestJ = -1;
         } else if (MAX_FEE_BPS > 0n && maxLeg > 0n) {
           const diff = absDiff(r.amount_raw, rj.amount_raw);
@@ -276,6 +300,7 @@ async function replaceClassifications(rows, largeWalletSet = new Set()) {
         const fee = String(absDiff(r.amount_raw, rj.amount_raw));
         inserts.push([r.id, counterparty, "interest", rj.id, fee, RULE, 85]);
         inserts.push([rj.id, counterparty, "interest", r.id, fee, RULE, 85]);
+        interestDayUsed.add(`${counterparty}|${dayKey(r)}`);
         used.add(i);
         used.add(bestJ);
       } else {
@@ -335,16 +360,20 @@ async function replaceClassifications(rows, largeWalletSet = new Set()) {
 
 try {
   const rows = await loadTransfers();
-  const largeWalletSet = await loadLargeWalletSet();
+  const walletApproxMap = await loadWalletApproxMap();
   console.log("Classify", rows.length, FULL_REBUILD ? "transferts en base" : "transferts non classés", {
     fullRebuild: FULL_REBUILD,
     rule: RULE,
-    largeWalletThresholdRaw: LARGE_WALLET_MIN_APPROX.toString(),
-    pairMaxRawStandard: PAIR_MAX.toString(),
-    pairMaxRawLarge: PAIR_MAX_LARGE.toString(),
-    largeWalletCount: largeWalletSet.size,
+    interestTiersRaw: {
+      lt50k: LEG_MAX_5.toString(),
+      gte50k: LEG_MAX_10.toString(),
+      gte100k: LEG_MAX_20.toString(),
+      gte200k: LEG_MAX_30.toString(),
+      gte500k: LEG_MAX_50.toString(),
+    },
+    walletCount: walletApproxMap.size,
   });
-  await replaceClassifications(rows, largeWalletSet);
+  await replaceClassifications(rows, walletApproxMap);
   console.log("Classification terminée", { rule: RULE, fullRebuild: FULL_REBUILD });
 } finally {
   await closePool();
