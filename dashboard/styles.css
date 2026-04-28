@@ -477,6 +477,13 @@ html[data-theme="dark"] .muted.wallet-team-badge {
   font-size: 1rem;
 }
 
+.card-subheading {
+  margin: 0.65rem 0 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
 .card-help {
   margin: 0.5rem 0 0;
   font-size: 0.8rem;

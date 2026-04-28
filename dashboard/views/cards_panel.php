@@ -89,7 +89,7 @@ $avgGasEthByTxCard = $nTxCard > 0 ? ($gasEthTotalCard / $nTxCard) : 0.0;
         <?php endif; ?>
       </div>
     </dl>
-    <h4 style="margin:0.65rem 0 0.35rem;font-size:0.95rem;font-weight:700;color:#1a1a1a">Gas (ETH) cumulé (progression)</h4>
+    <h4 class="card-subheading">Gas (ETH) cumulé (progression)</h4>
     <div class="vault-mini-chart vault-mini-chart--delta" aria-label="Gas (ETH) cumulé (progression) par jour">
       <canvas id="chartGasDaily" aria-label="Gas (ETH) cumulé (progression) par jour"></canvas>
     </div>

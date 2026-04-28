@@ -565,7 +565,7 @@
       var elVault = document.getElementById('chartVaultDaily');
       if (elVault && vaultDaily && vaultDaily.length) {
         var vaultWeekly = weeklyFromCumulativeDaily(vaultDaily, 'vaultEur');
-        var vaultTickIdx = pickTickIndices(vaultWeekly.length, 8);
+        var vaultTickIdx = pickTickIndices(vaultWeekly.length, 2);
         var chVault = monitorNewChart(elVault, {
           type: 'line',
           data: {
@@ -846,7 +846,7 @@
       var elGas = document.getElementById('chartGasDaily');
       if (elGas) {
         var gasWeekly = weeklyFromCumulativeDaily(gasDaily, 'gasEth');
-        var gasTickIdx = pickTickIndices(gasWeekly.length, 8);
+        var gasTickIdx = pickTickIndices(gasWeekly.length, 2);
         var chGas = monitorNewChart(elGas, {
           type: 'line',
           data: {
