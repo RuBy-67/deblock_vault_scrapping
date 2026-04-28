@@ -137,6 +137,28 @@
     };
   }
 
+  /** Couleurs séries : jour = noir/gris ; nuit = teal Deblock (#01d4ba) + secondaires. */
+  function monitorChartPalette() {
+    var st = getComputedStyle(document.documentElement);
+    function g(name, fb) {
+      var v = st.getPropertyValue(name).trim();
+      return v || fb;
+    }
+    return {
+      c1Fill: g('--chart-c1-fill', 'rgba(26,26,26,0.55)'),
+      c1Stroke: g('--chart-c1-stroke', '#1a1a1a'),
+      c1Area: g('--chart-c1-area', 'rgba(26,26,26,0.12)'),
+      c2Fill: g('--chart-c2-fill', 'rgba(75,85,99,0.45)'),
+      c2Stroke: g('--chart-c2-stroke', '#4b5563'),
+      c2Area: g('--chart-c2-area', 'rgba(75,85,99,0.12)'),
+      c3Fill: g('--chart-c3-fill', 'rgba(107,114,128,0.4)'),
+      c3Stroke: g('--chart-c3-stroke', '#6b7280'),
+      c3Area: g('--chart-c3-area', 'rgba(107,114,128,0.1)'),
+      c4Stroke: g('--chart-c4-stroke', '#374151'),
+      c5Stroke: g('--chart-c5-stroke', '#52525b'),
+    };
+  }
+
   function monitorChartApplyTheme(options) {
     if (!options || typeof Chart === 'undefined') return;
     var tc = monitorChartThemeColors();
@@ -165,7 +187,7 @@
 
   function monitorNewChart(ctx, config) {
     if (config && config.options) monitorChartApplyTheme(config.options);
-    return monitorNewChart(ctx, config);
+    return new Chart(ctx, config);
   }
 
   function isoWeekStartFromDay(dayStr) {
@@ -241,6 +263,8 @@
       return new Intl.NumberFormat('fr-FR', { notation: 'compact', compactDisplay: 'short', maximumFractionDigits: 2, minimumFractionDigits: 0 }).format(v) + '\u202FETH';
     };
 
+    var pal = monitorChartPalette();
+
     destroyChartsOnCanvases();
 
     if (daily.length) {
@@ -260,8 +284,8 @@
                 data: daily.map(function (d) {
                   return d.n;
                 }),
-                backgroundColor: 'rgba(37, 99, 235, 0.55)',
-                borderColor: 'rgba(37, 99, 235, 0.9)',
+                backgroundColor: pal.c1Fill,
+                borderColor: pal.c1Stroke,
                 borderWidth: 1,
               },
             ],
@@ -303,8 +327,8 @@
                 data: nodeVolumeDaily.map(function (d) {
                   return d.volumeEur;
                 }),
-                borderColor: '#0d9488',
-                backgroundColor: 'rgba(13, 148, 136, 0.15)',
+                borderColor: pal.c1Stroke,
+                backgroundColor: pal.c1Area,
                 fill: true,
                 tension: 0.2,
                 pointRadius: 2,
@@ -358,8 +382,8 @@
                 data: interestDaily.map(function (d) {
                   return d.interestEur;
                 }),
-                backgroundColor: 'rgba(34, 197, 94, 0.5)',
-                borderColor: 'rgba(22, 163, 74, 0.95)',
+                backgroundColor: pal.c1Fill,
+                borderColor: pal.c1Stroke,
                 borderWidth: 1,
               },
             ],
@@ -413,8 +437,8 @@
                 data: dailyClass.map(function (d) {
                   return d.payment;
                 }),
-                borderColor: '#7c3aed',
-                backgroundColor: 'rgba(124, 58, 237, 0.12)',
+                borderColor: pal.c1Stroke,
+                backgroundColor: pal.c1Area,
                 fill: true,
                 tension: 0.2,
                 pointRadius: 2,
@@ -426,8 +450,8 @@
                 data: dailyClass.map(function (d) {
                   return d.top_up;
                 }),
-                borderColor: '#ea580c',
-                backgroundColor: 'rgba(234, 88, 12, 0.12)',
+                borderColor: pal.c2Stroke,
+                backgroundColor: pal.c2Area,
                 fill: true,
                 tension: 0.2,
                 pointRadius: 2,
@@ -439,8 +463,8 @@
                 data: dailyClass.map(function (d) {
                   return d.nPayment;
                 }),
-                backgroundColor: 'rgba(124, 58, 237, 0.55)',
-                borderColor: 'rgba(124, 58, 237, 0.95)',
+                backgroundColor: pal.c1Fill,
+                borderColor: pal.c1Stroke,
                 borderWidth: 1,
               },
               {
@@ -450,8 +474,8 @@
                 data: dailyClass.map(function (d) {
                   return d.nTopUp;
                 }),
-                backgroundColor: 'rgba(234, 88, 12, 0.55)',
-                borderColor: 'rgba(234, 88, 12, 0.95)',
+                backgroundColor: pal.c2Fill,
+                borderColor: pal.c2Stroke,
                 borderWidth: 1,
               },
             ],
@@ -511,8 +535,8 @@
                 data: vaultWeekly.map(function (d) {
                   return d.value;
                 }),
-                borderColor: 'rgba(37, 99, 235, 0.95)',
-                backgroundColor: 'rgba(37, 99, 235, 0.12)',
+                borderColor: pal.c1Stroke,
+                backgroundColor: pal.c1Area,
                 fill: true,
                 tension: 0.25,
                 pointRadius: 1.6,
@@ -577,8 +601,8 @@
                 data: vaultDeltaDaily.map(function (d) {
                   return d.vaultDeltaEur;
                 }),
-                borderColor: 'rgba(234, 88, 12, 0.95)',
-                backgroundColor: 'rgba(234, 88, 12, 0.10)',
+                borderColor: pal.c2Stroke,
+                backgroundColor: pal.c2Area,
                 fill: true,
                 tension: 0.25,
                 pointRadius: 1.4,
@@ -630,8 +654,8 @@
                 data: paymentAvgDaily.map(function (d) {
                   return d.avgTicketEur;
                 }),
-                borderColor: '#6366f1',
-                backgroundColor: 'rgba(99, 102, 241, 0.14)',
+                borderColor: pal.c1Stroke,
+                backgroundColor: pal.c1Area,
                 fill: true,
                 tension: 0.25,
                 pointRadius: 2,
@@ -690,8 +714,8 @@
                 data: vaultDeltaDaily.map(function (d) {
                   return d.vaultDeltaEur;
                 }),
-                backgroundColor: 'rgba(234, 88, 12, 0.45)',
-                borderColor: 'rgba(234, 88, 12, 0.95)',
+                backgroundColor: pal.c2Fill,
+                borderColor: pal.c2Stroke,
                 borderWidth: 1,
               },
             ],
@@ -735,8 +759,8 @@
                 data: dailyClass.map(function (d) {
                   return d.nPayment;
                 }),
-                backgroundColor: 'rgba(124, 58, 237, 0.55)',
-                borderColor: 'rgba(124, 58, 237, 0.95)',
+                backgroundColor: pal.c1Fill,
+                borderColor: pal.c1Stroke,
                 borderWidth: 1,
               },
               {
@@ -744,8 +768,8 @@
                 data: dailyClass.map(function (d) {
                   return d.nTopUp;
                 }),
-                backgroundColor: 'rgba(234, 88, 12, 0.55)',
-                borderColor: 'rgba(234, 88, 12, 0.95)',
+                backgroundColor: pal.c2Fill,
+                borderColor: pal.c2Stroke,
                 borderWidth: 1,
               },
             ],
@@ -792,8 +816,8 @@
                 data: gasWeekly.map(function (d) {
                   return d.value;
                 }),
-                borderColor: '#0d9488',
-                backgroundColor: 'rgba(13, 148, 136, 0.12)',
+                borderColor: pal.c1Stroke,
+                backgroundColor: pal.c1Area,
                 fill: true,
                 tension: 0.25,
                 pointRadius: 1.4,
@@ -863,8 +887,8 @@
                 type: 'bar',
                 label: 'Volume payment (≈ €)',
                 data: wdata,
-                backgroundColor: 'rgba(124, 58, 237, 0.55)',
-                borderColor: 'rgba(124, 58, 237, 0.95)',
+                backgroundColor: pal.c1Fill,
+                borderColor: pal.c1Stroke,
                 borderWidth: 1,
                 order: 3,
               },
@@ -874,7 +898,7 @@
                 data: wlabels.map(function () {
                   return avgA;
                 }),
-                borderColor: '#0d9488',
+                borderColor: pal.c4Stroke,
                 backgroundColor: 'transparent',
                 borderWidth: 2,
                 borderDash: [6, 4],
@@ -888,7 +912,7 @@
                 data: wlabels.map(function () {
                   return avgC;
                 }),
-                borderColor: '#ca8a04',
+                borderColor: pal.c5Stroke,
                 backgroundColor: 'transparent',
                 borderWidth: 2,
                 borderDash: [2, 3],
@@ -902,7 +926,7 @@
                 data: weeklyPay.map(function (w) {
                   return w.avgPerAccountEur;
                 }),
-                borderColor: '#4f46e5',
+                borderColor: pal.c3Stroke,
                 backgroundColor: 'transparent',
                 borderWidth: 2,
                 pointRadius: 3,

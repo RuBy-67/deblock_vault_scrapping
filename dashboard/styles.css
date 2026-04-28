@@ -15,8 +15,20 @@
   --surface-insight: #fafafa;
   --input-border: #ccc;
   --input-bg: #fff;
+  --accent: #2563eb;
   --primary: #2563eb;
   --primary-hover: #1d4ed8;
+  --chart-c1-fill: rgba(26, 26, 26, 0.55);
+  --chart-c1-stroke: #1a1a1a;
+  --chart-c1-area: rgba(26, 26, 26, 0.12);
+  --chart-c2-fill: rgba(75, 85, 99, 0.42);
+  --chart-c2-stroke: #4b5563;
+  --chart-c2-area: rgba(75, 85, 99, 0.1);
+  --chart-c3-fill: rgba(107, 114, 128, 0.38);
+  --chart-c3-stroke: #6b7280;
+  --chart-c3-area: rgba(107, 114, 128, 0.08);
+  --chart-c4-stroke: #374151;
+  --chart-c5-stroke: #52525b;
   --view-switch-text: #334155;
   --view-switch-active-border: #bfdbfe;
   --view-switch-active-text: #1e40af;
@@ -51,12 +63,13 @@ html[data-theme="dark"] {
   --surface-insight: #22262e;
   --input-border: #3d4553;
   --input-bg: #252a33;
-  --primary: #3b82f6;
-  --primary-hover: #60a5fa;
+  --accent: #01d4ba;
+  --primary: #01d4ba;
+  --primary-hover: #33e8d0;
   --view-switch-text: #b8c0cc;
-  --view-switch-active-border: #3b5998;
-  --view-switch-active-text: #93c5fd;
-  --view-switch-active-bg: #252d3d;
+  --view-switch-active-border: rgba(1, 212, 186, 0.45);
+  --view-switch-active-text: #01d4ba;
+  --view-switch-active-bg: #1a2422;
   --view-switch-hover-text: #e8eaed;
   --view-switch-hover-bg: rgba(255, 255, 255, 0.06);
   --shadow-soft: rgba(0, 0, 0, 0.35);
@@ -69,6 +82,17 @@ html[data-theme="dark"] {
   --chevron: #94a3b8;
   --chart-tick: #94a3b8;
   --chart-grid: rgba(255, 255, 255, 0.08);
+  --chart-c1-fill: rgba(1, 212, 186, 0.42);
+  --chart-c1-stroke: #01d4ba;
+  --chart-c1-area: rgba(1, 212, 186, 0.14);
+  --chart-c2-fill: rgba(1, 212, 186, 0.26);
+  --chart-c2-stroke: rgba(1, 212, 186, 0.82);
+  --chart-c2-area: rgba(1, 212, 186, 0.07);
+  --chart-c3-fill: rgba(148, 163, 184, 0.32);
+  --chart-c3-stroke: #a8b8ce;
+  --chart-c3-area: rgba(148, 163, 184, 0.08);
+  --chart-c4-stroke: rgba(1, 212, 186, 0.55);
+  --chart-c5-stroke: #94a3b8;
 }
 
 body {
@@ -113,7 +137,7 @@ body {
 }
 
 .theme-toggle:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
