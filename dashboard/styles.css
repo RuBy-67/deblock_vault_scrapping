@@ -641,6 +641,109 @@ html[data-theme="dark"] .muted.wallet-team-badge {
   width: 100%;
 }
 
+/** Graphiques pleine largeur : aperçu compact (agrandissement au clic). */
+.chart-canvas-wrap--expandable-host {
+  height: min(200px, 32vh);
+}
+
+.chart-canvas-wrap--expandable {
+  cursor: zoom-in;
+  border-radius: 8px;
+  outline-offset: 2px;
+}
+
+.chart-canvas-wrap--expandable:focus-visible {
+  outline: 2px solid var(--accent);
+}
+
+.chart-canvas-wrap--expandable::after {
+  content: 'Agrandir';
+  position: absolute;
+  bottom: 0.35rem;
+  right: 0.5rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  pointer-events: none;
+  letter-spacing: 0.02em;
+}
+
+.chart-panel .chart-subtitle {
+  margin: 0.85rem 0 0.35rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text-heading);
+}
+
+.monitor-chart-expand {
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  max-width: min(1120px, 96vw);
+  width: 100%;
+}
+
+.monitor-chart-expand::backdrop {
+  background: rgba(15, 17, 23, 0.55);
+}
+
+html[data-theme='dark'] .monitor-chart-expand::backdrop {
+  background: rgba(0, 0, 0, 0.65);
+}
+
+.monitor-chart-expand__shell {
+  display: flex;
+  flex-direction: column;
+  max-height: 92vh;
+}
+
+.monitor-chart-expand__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.monitor-chart-expand__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.monitor-chart-expand__close {
+  flex-shrink: 0;
+  border: none;
+  background: var(--surface-muted);
+  color: var(--text);
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 8px;
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.monitor-chart-expand__close:hover {
+  background: var(--surface-hover);
+}
+
+.monitor-chart-expand__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.5rem 0.75rem 0.85rem;
+}
+
+.chart-modal-canvas-wrap {
+  height: min(68vh, 620px);
+  width: 100%;
+}
+
 .chart-canvas-wrap--short {
   height: min(260px, 38vh);
 }

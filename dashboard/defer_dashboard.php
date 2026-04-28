@@ -28,6 +28,12 @@ $vaultToleranceEur = isset($_GET['vault_tolerance_eur']) ? trim((string) $_GET['
 $vaultTargetEur = preg_match('/^\d+([.,]\d+)?$/', str_replace(',', '.', $vaultTargetEur)) ? $vaultTargetEur : '';
 $vaultToleranceEur = preg_match('/^\d+([.,]\d+)?$/', str_replace(',', '.', $vaultToleranceEur)) ? $vaultToleranceEur : '';
 
+$chartPayloadMode = isset($_GET['chart_payload']) ? strtolower(trim((string) $_GET['chart_payload'])) : 'compact';
+if (!in_array($chartPayloadMode, ['compact', 'full'], true)) {
+    $chartPayloadMode = 'compact';
+}
+$deferChartsOnly = isset($_GET['defer_charts_only']) && (string) $_GET['defer_charts_only'] === '1';
+
 try {
     $pdo = monitor_pdo($cfg);
 } catch (Throwable $e) {
@@ -127,6 +133,26 @@ try {
         $merged = array_merge($shell, $heavy);
     }
 
+    if ($chartPayloadMode === 'compact' && ($merged['chartPayloadJson'] ?? '') !== '') {
+        $merged['chartPayloadJson'] = monitor_dashboard_compact_chart_payload_json((string) $merged['chartPayloadJson']);
+    }
+
+    if ($deferChartsOnly) {
+        $dec = json_decode((string) ($merged['chartPayloadJson'] ?? '{}'), true);
+        $initChartsOnly = is_array($dec)
+            && (
+                (!empty($dec['daily']) && is_array($dec['daily']))
+                || (!empty($dec['weeklyPay']) && is_array($dec['weeklyPay']))
+                || (!empty($dec['gasDaily']) && is_array($dec['gasDaily']))
+            );
+        echo json_encode([
+            'chartPayloadJson' => $merged['chartPayloadJson'],
+            'chartPayloadCompact' => ($chartPayloadMode === 'compact'),
+            'initCharts' => $initChartsOnly,
+        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS);
+        exit;
+    }
+
     extract($merged, EXTR_OVERWRITE);
     $dateFrom = $f['dateFrom'];
     $dateTo = $f['dateTo'];
@@ -145,7 +171,13 @@ try {
     $html = ob_get_clean();
 
     $initCharts = $chartDaily !== [] || $hasWeeklyPaymentChart || ($hasGasDailyChart ?? false);
-    echo json_encode(['cardsHtml' => $cardsHtml, 'html' => $html, 'chartPayloadJson' => $chartPayloadJson, 'initCharts' => $initCharts], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS);
+    echo json_encode([
+        'cardsHtml' => $cardsHtml,
+        'html' => $html,
+        'chartPayloadJson' => $chartPayloadJson,
+        'chartPayloadCompact' => ($chartPayloadMode === 'compact'),
+        'initCharts' => $initCharts,
+    ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS);
 } catch (Throwable $e) {
     http_response_code(500);
     echo json_encode(['error' => $e->getMessage()], JSON_UNESCAPED_UNICODE);

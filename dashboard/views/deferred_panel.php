@@ -100,7 +100,7 @@ if ($amountSearchActive) : ?>
       </div>
       <h3 class="chart-title">Volume total traité par le noeud (≈ € / jour)</h3>
       <p class="muted chart-caption">Somme des montants de toutes les lignes <code>raw_transfers</code> ce jour (chaque transfert compté une fois, IN et OUT inclus). Hors mint/burn <code>0x0</code>. Mêmes filtres dates / Wallet que le formulaire.</p>
-      <div class="chart-canvas-wrap">
+      <div class="chart-canvas-wrap chart-canvas-wrap--expandable-host">
         <canvas id="chartNodeVolumeJour" aria-label="Volume total jeton traité par le noeud par jour"></canvas>
       </div>
       <h3 class="chart-title">Intérêt « versé » par jour (classification v1)</h3>
@@ -108,7 +108,7 @@ if ($amountSearchActive) : ?>
         Somme des montants classés <code>interest</code> par jour, <strong>une jambe par paire</strong> (même règle que le tableau « Par type »). Hors mint/burn <code>0x0</code>. Heuristique v1, pas un libellé on-chain.
         <br>Total cumulé sur la plage affichée (depuis le J1 de la plage) : <strong><?= htmlspecialchars(fmt_eur($interestTotalRaw)) ?></strong>.
       </p>
-      <div class="chart-canvas-wrap">
+      <div class="chart-canvas-wrap chart-canvas-wrap--expandable-host">
         <canvas id="chartInterestJour" aria-label="Volume interest classé par jour"></canvas>
       </div>
       <p class="muted" style="margin-top:1rem; max-width:52rem">
@@ -135,15 +135,22 @@ if ($amountSearchActive) : ?>
       <!-- Graphiques payment/top_up combinés (volume + nombre) au-dessus -->
     <?php endif; ?>
 
-    <h3 class="chart-title" style="margin-top:1.75rem">Paiements (<code>payment</code>)  volume par semaine</h3>
-    <p class="muted chart-caption">Uniquement <code>payment</code> (pas <code>interest</code> ni autres types), hors mint <code>0x0</code>, semaine ISO (<strong>lundi → dimanche</strong>), envois user <strong>vers le noeud</strong>. <strong>Barres</strong> : volume (€, gauche). <strong>Violet</strong> : moy. € / compte distinct (€, colonne de droite). <strong>Ambre</strong> : comptes distincts ; <strong>gris pointillé</strong> : lignes <code>payment</code> (échelle entière, autre colonne à droite).</p>
+    <h3 class="chart-title" style="margin-top:1.75rem">Paiements (<code>payment</code>) par semaine</h3>
+    <p class="muted chart-caption">Uniquement <code>payment</code> (pas <code>interest</code> ni autres types), hors mint <code>0x0</code>, semaine ISO (<strong>lundi → dimanche</strong>). Aperçu : seulement les derniers points (sans défilement) ; <strong>cliquer sur un graphique</strong> pour la période complète (défilement horizontal si besoin).</p>
     <?php if ($hasWeeklyPaymentChart) : ?>
       <p class="muted chart-weekly-averages" style="margin-bottom:0.75rem;max-width:52rem">
         Moyenne sur semaines où il y a eu au moins un payment : <span class="chart-accent-value"><?= htmlspecialchars(fmt_eur($avgPayActiveWeekRaw)) ?></span> / sem.
         · Étalée sur la plage filtrée (≈ <?= htmlspecialchars(number_format($weeksInFilterSpan, 1, ',', "\u{202F}")) ?> sem.) : <span class="chart-accent-value"><?= htmlspecialchars(number_format($avgPayCalWeekEur, 2, ',', "\u{202F}")) ?>&nbsp;€</span> / sem.
       </p>
-      <div class="chart-canvas-wrap">
+      <h4 class="chart-subtitle">Volume + moyenne € / compte distinct</h4>
+      <p class="muted chart-caption" style="margin-top:-0.25rem">Barres = volume total (€, gauche). Courbe violette = volume ÷ comptes distincts (€, droite).</p>
+      <div class="chart-canvas-wrap chart-canvas-wrap--expandable-host">
         <canvas id="chartPaymentWeekly" aria-label="Volume payment agrégé par semaine"></canvas>
+      </div>
+      <h4 class="chart-subtitle" style="margin-top:1.25rem">Activité <code>payment</code> (comptes &amp; lignes)</h4>
+      <p class="muted chart-caption" style="margin-top:-0.25rem">Courbes sur une seule échelle (nombres entiers). Ambre = comptes distincts ; gris pointillé = nombre de lignes classées <code>payment</code>.</p>
+      <div class="chart-canvas-wrap chart-canvas-wrap--expandable-host">
+        <canvas id="chartPaymentWeeklyActivity" aria-label="Activité payment par semaine"></canvas>
       </div>
     <?php else : ?>
       <p class="muted">Aucun <code>payment</code> sur la période / filtre.</p>

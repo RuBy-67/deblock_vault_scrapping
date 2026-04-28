@@ -11,20 +11,185 @@
     'chartPaymentAvgDaily',
     'chartPaymentTopupCount',
     'chartPaymentWeekly',
+    'chartPaymentWeeklyActivity',
     'chartPaymentTopupCombined',
     'chartFluxNetDaily',
     'chartVaultDaily',
     'chartVaultDeltaDaily',
     'chartGasDaily',
+    'chartExpandModalCanvas',
   ];
+
+  /** Aperçu : derniers points sans scroll ; clic → modal avec série complète. */
+  var MONITOR_PREVIEW_POINTS = 6;
+  var MONITOR_SCROLL_SUPPRESS_MIN = 2000;
 
   function destroyChartsOnCanvases() {
     if (typeof Chart === 'undefined' || !Chart.getChart) return;
+    var dlg = document.getElementById('monitor-chart-expand-dialog');
+    if (dlg && dlg.open) {
+      dlg.close();
+    }
     CANVAS_IDS.forEach(function (id) {
       var el = document.getElementById(id);
       if (!el) return;
       var ch = Chart.getChart(el);
       if (ch) ch.destroy();
+    });
+  }
+
+  function monitorEnsureExpandDialog() {
+    var d = document.getElementById('monitor-chart-expand-dialog');
+    if (d) return d;
+    d = document.createElement('dialog');
+    d.id = 'monitor-chart-expand-dialog';
+    d.className = 'monitor-chart-expand';
+    d.innerHTML =
+      '<div class="monitor-chart-expand__shell">' +
+      '<header class="monitor-chart-expand__header">' +
+      '<h2 class="monitor-chart-expand__title">Graphique</h2>' +
+      '<button type="button" class="monitor-chart-expand__close" aria-label="Fermer">×</button>' +
+      '</header>' +
+      '<div class="chart-scroll monitor-chart-expand__scroll" id="monitor-chart-expand-scroll">' +
+      '<div class="chart-canvas-wrap chart-modal-canvas-wrap"><canvas id="chartExpandModalCanvas"></canvas></div>' +
+      '</div></div>';
+    document.body.appendChild(d);
+    d.querySelector('.monitor-chart-expand__close').addEventListener('click', function () {
+      d.close();
+    });
+    d.addEventListener('close', function () {
+      var mc = document.getElementById('chartExpandModalCanvas');
+      if (mc && Chart.getChart) {
+        var ch = Chart.getChart(mc);
+        if (ch) ch.destroy();
+      }
+      var scroll = document.getElementById('monitor-chart-expand-scroll');
+      if (scroll) {
+        scroll.scrollLeft = 0;
+        var inner = scroll.querySelector('.chart-canvas-wrap');
+        if (inner) inner.style.minWidth = '';
+        var leg = scroll.querySelector('.chart-legend-sticky');
+        if (leg) leg.remove();
+        scroll.classList.remove('chart-scroll--with-sticky-legend');
+      }
+    });
+    return d;
+  }
+
+  var monitorChartFullFetchPromise = null;
+
+  /** Charge le JSON graphiques complet (léger : pas de HTML cartes) si le payload courant est compact. */
+  function monitorEnsureFullChartPayload() {
+    if (!window.monitorChartPayloadCompact) {
+      return Promise.resolve();
+    }
+    if (monitorChartFullFetchPromise) {
+      return monitorChartFullFetchPromise;
+    }
+    var endpoint = window.monitorDeferEndpoint || 'defer_dashboard.php';
+    var params = new URLSearchParams(window.location.search);
+    params.set('chart_payload', 'full');
+    params.set('defer_charts_only', '1');
+    var url = endpoint + '?' + params.toString();
+    monitorChartFullFetchPromise = fetch(url, {
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json' },
+    })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (data) {
+        monitorChartFullFetchPromise = null;
+        if (data.error) throw new Error(String(data.error));
+        var s = document.getElementById('monitor-chart-payload');
+        if (s && data.chartPayloadJson) {
+          s.textContent = data.chartPayloadJson;
+        }
+        window.monitorChartPayloadCompact = !!data.chartPayloadCompact;
+        if (typeof window.monitorInitCharts === 'function') {
+          window.monitorInitCharts();
+        }
+      })
+      .catch(function (e) {
+        monitorChartFullFetchPromise = null;
+        throw e;
+      });
+    return monitorChartFullFetchPromise;
+  }
+
+  function monitorOpenChartExpandModal(wrapEl) {
+    function run() {
+      var st = wrapEl && wrapEl._expandState;
+      if (!st || typeof st.make !== 'function') return;
+      var dlg = monitorEnsureExpandDialog();
+      var th = dlg.querySelector('.monitor-chart-expand__title');
+      if (th) th.textContent = st.title;
+      var mc = document.getElementById('chartExpandModalCanvas');
+      if (!mc || typeof Chart === 'undefined' || !Chart.getChart) return;
+      var ex = Chart.getChart(mc);
+      if (ex) ex.destroy();
+      var scrollEl = document.getElementById('monitor-chart-expand-scroll');
+      if (scrollEl) {
+        var inner0 = scrollEl.querySelector('.chart-canvas-wrap');
+        if (inner0) inner0.style.minWidth = '';
+        scrollEl.scrollLeft = 0;
+        var leg0 = scrollEl.querySelector('.chart-legend-sticky');
+        if (leg0) leg0.remove();
+        scrollEl.classList.remove('chart-scroll--with-sticky-legend');
+      }
+      var fullCfg = st.make(null);
+      var chM = monitorNewChart(mc, fullCfg);
+      var nLab = fullCfg.data && fullCfg.data.labels ? fullCfg.data.labels.length : 0;
+      if (chM && nLab >= 5) {
+        var s = ensureChartHorizontalScroll(chM.canvas, nLab, {
+          pxPerLabel: 40,
+          maxWidth: 8000,
+        });
+        if (s) monitorPopulateStickyLegend(chM, s);
+      }
+      dlg.showModal();
+    }
+    if (window.monitorChartPayloadCompact) {
+      monitorEnsureFullChartPayload()
+        .then(function () {
+          run();
+        })
+        .catch(function (err) {
+          console.error(err);
+          if (typeof window.alert === 'function') {
+            alert(
+              'Impossible de charger les données complètes des graphiques. Réessayez ou vérifiez la connexion.'
+            );
+          }
+        });
+      return;
+    }
+    run();
+  }
+
+  /**
+   * @param {HTMLElement} wrapEl parent .chart-canvas-wrap du canvas
+   * @param {string} title titre du modal
+   * @param {function(number|null): object} makeCfg nLast = 6 (aperçu) ou null (plein)
+   */
+  function monitorBindChartExpand(wrapEl, title, makeCfg) {
+    if (!wrapEl || typeof makeCfg !== 'function') return;
+    wrapEl.classList.add('chart-canvas-wrap--expandable');
+    wrapEl.setAttribute('role', 'button');
+    wrapEl.setAttribute('tabindex', '0');
+    wrapEl.setAttribute('aria-label', title + ' — aperçu. Cliquer ou Entrée pour agrandir.');
+    wrapEl._expandState = { make: makeCfg, title: title };
+    if (wrapEl._expandListenersBound) return;
+    wrapEl._expandListenersBound = true;
+    wrapEl.addEventListener('click', function () {
+      monitorOpenChartExpandModal(wrapEl);
+    });
+    wrapEl.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        monitorOpenChartExpandModal(wrapEl);
+      }
     });
   }
 
@@ -317,6 +482,8 @@
       return;
     }
 
+    window.monitorChartPayloadCompact = !!(payload._chartMeta && payload._chartMeta.mode === 'compact');
+
     var daily = payload.daily || [];
     var dailyClass = payload.dailyClass || [];
     var interestDaily = payload.interestDaily || [];
@@ -398,112 +565,138 @@
 
       var elNodeVol = document.getElementById('chartNodeVolumeJour');
       if (elNodeVol) {
-        var chNodeVol = monitorNewChart(elNodeVol, {
-          type: 'line',
-          data: {
-            labels: labels,
-            datasets: [
-              {
-                label: 'Volume total (≈ € / jour)',
-                data: nodeVolumeDaily.map(function (d) {
-                  return d.volumeEur;
-                }),
-                borderColor: pal.c1Stroke,
-                backgroundColor: pal.c1Area,
-                fill: true,
-                tension: 0.2,
-                pointRadius: 2,
-              },
-            ],
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: { mode: 'index', intersect: false },
-            plugins: {
-              legend: { display: false },
-              tooltip: {
-                callbacks: {
-                  afterLabel: function (ctx) {
-                    var idx = ctx.dataIndex;
-                    if (idx >= 0 && nodeVolumeDaily[idx] && nodeVolumeDaily[idx].nTx) {
-                      return nodeVolumeDaily[idx].nTx + ' transfert(s) (hors 0x0)';
-                    }
-                    return '';
-                  },
-                  label: function (ctx) {
-                    var v = ctx.parsed.y;
-                    if (v == null) return ctx.dataset.label;
-                    return ctx.dataset.label + ' : ' + fmtEur(v);
+        var wrapNodeVol = elNodeVol.parentElement;
+        function makeNodeVolumeCfg(nLast) {
+          var start = nLast != null ? Math.max(0, labels.length - nLast) : 0;
+          var L = labels.slice(start);
+          var rows = nodeVolumeDaily.slice(start);
+          return {
+            type: 'line',
+            data: {
+              labels: L,
+              datasets: [
+                {
+                  label: 'Volume total (≈ € / jour)',
+                  data: rows.map(function (d) {
+                    return d.volumeEur;
+                  }),
+                  borderColor: pal.c1Stroke,
+                  backgroundColor: pal.c1Area,
+                  fill: true,
+                  tension: 0.2,
+                  pointRadius: 2,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              interaction: { mode: 'index', intersect: false },
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    afterLabel: function (ctx) {
+                      var idx = ctx.dataIndex;
+                      if (idx >= 0 && rows[idx] && rows[idx].nTx) {
+                        return rows[idx].nTx + ' transfert(s) (hors 0x0)';
+                      }
+                      return '';
+                    },
+                    label: function (ctx) {
+                      var v = ctx.parsed.y;
+                      if (v == null) return ctx.dataset.label;
+                      return ctx.dataset.label + ' : ' + fmtEur(v);
+                    },
                   },
                 },
               },
-            },
-            scales: {
-              x: { ticks: { maxRotation: 45, minRotation: 0 } },
-              y: {
-                beginAtZero: true,
-                ticks: { callback: function (val) { return fmtEurAxis(val); } },
+              scales: {
+                x: { ticks: { maxRotation: 45, minRotation: 0 } },
+                y: {
+                  beginAtZero: true,
+                  ticks: { callback: function (val) { return fmtEurAxis(val); } },
+                },
               },
             },
-          },
+          };
+        }
+        var chNodeVol = monitorNewChart(elNodeVol, makeNodeVolumeCfg(MONITOR_PREVIEW_POINTS));
+        ensureChartHorizontalScroll(chNodeVol.canvas, labels.length, {
+          minLabels: MONITOR_SCROLL_SUPPRESS_MIN,
         });
-        var sNode = ensureChartHorizontalScroll(chNodeVol.canvas, labels.length, {});
-        if (sNode) monitorPopulateStickyLegend(chNodeVol, sNode);
+        if (wrapNodeVol) {
+          monitorBindChartExpand(
+            wrapNodeVol,
+            'Volume total traité par le noeud (≈ € / jour)',
+            makeNodeVolumeCfg
+          );
+        }
       }
 
       var elInt = document.getElementById('chartInterestJour');
       if (elInt) {
-        var chInt = monitorNewChart(elInt, {
-          type: 'bar',
-          data: {
-            labels: labels,
-            datasets: [
-              {
-                label: 'Interest v1 (≈ € / jour)',
-                data: interestDaily.map(function (d) {
-                  return d.interestEur;
-                }),
-                backgroundColor: pal.c1Fill,
-                borderColor: pal.c1Stroke,
-                borderWidth: 1,
-              },
-            ],
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: { display: false },
-              tooltip: {
-                callbacks: {
-                  afterLabel: function (ctx) {
-                    var idx = ctx.dataIndex;
-                    if (idx >= 0 && interestDaily[idx]) {
-                      var ni = interestDaily[idx].nInterest;
-                      return ni ? ni + ' ligne(s) interest ce jour' : '';
-                    }
-                    return '';
-                  },
-                  label: function (ctx) {
-                    var v = ctx.parsed.y;
-                    if (v == null) return ctx.dataset.label;
-                    return ctx.dataset.label + ' : ' + fmtEur(v);
+        var wrapInt = elInt.parentElement;
+        function makeInterestCfg(nLast) {
+          var start = nLast != null ? Math.max(0, labels.length - nLast) : 0;
+          var L = labels.slice(start);
+          var rows = interestDaily.slice(start);
+          return {
+            type: 'bar',
+            data: {
+              labels: L,
+              datasets: [
+                {
+                  label: 'Interest v1 (≈ € / jour)',
+                  data: rows.map(function (d) {
+                    return d.interestEur;
+                  }),
+                  backgroundColor: pal.c1Fill,
+                  borderColor: pal.c1Stroke,
+                  borderWidth: 1,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    afterLabel: function (ctx) {
+                      var idx = ctx.dataIndex;
+                      if (idx >= 0 && rows[idx]) {
+                        var ni = rows[idx].nInterest;
+                        return ni ? ni + ' ligne(s) interest ce jour' : '';
+                      }
+                      return '';
+                    },
+                    label: function (ctx) {
+                      var v = ctx.parsed.y;
+                      if (v == null) return ctx.dataset.label;
+                      return ctx.dataset.label + ' : ' + fmtEur(v);
+                    },
                   },
                 },
               },
-            },
-            scales: {
-              x: { ticks: { maxRotation: 45, minRotation: 0 } },
-              y: {
-                beginAtZero: true,
-                ticks: { callback: function (val) { return fmtEurAxis(val); } },
+              scales: {
+                x: { ticks: { maxRotation: 45, minRotation: 0 } },
+                y: {
+                  beginAtZero: true,
+                  ticks: { callback: function (val) { return fmtEurAxis(val); } },
+                },
               },
             },
-          },
+          };
+        }
+        var chInt = monitorNewChart(elInt, makeInterestCfg(MONITOR_PREVIEW_POINTS));
+        ensureChartHorizontalScroll(chInt.canvas, labels.length, {
+          minLabels: MONITOR_SCROLL_SUPPRESS_MIN,
         });
-        var sInt = ensureChartHorizontalScroll(chInt.canvas, labels.length, {});
-        if (sInt) monitorPopulateStickyLegend(chInt, sInt);
+        if (wrapInt) {
+          monitorBindChartExpand(wrapInt, 'Intérêt « versé » par jour (classification v1)', makeInterestCfg);
+        }
       }
 
       var elPayTopupCombined = document.getElementById('chartPaymentTopupCombined');
@@ -985,18 +1178,21 @@
     }
 
     if (weeklyPay.length) {
-      var wlabels = weeklyPay.map(function (w) {
-        return w.weekStart;
-      });
-      var wdata = weeklyPay.map(function (w) {
-        return w.volumeEur;
-      });
       var elW = document.getElementById('chartPaymentWeekly');
-      if (elW) {
-        var chWeekly = monitorNewChart(elW, {
+      var wrapW = elW && elW.parentElement;
+      function makeWeeklyVolumeCfg(nLast) {
+        var start = nLast != null ? Math.max(0, weeklyPay.length - nLast) : 0;
+        var W = weeklyPay.slice(start);
+        var L = W.map(function (w) {
+          return w.weekStart;
+        });
+        var wdata = W.map(function (w) {
+          return w.volumeEur;
+        });
+        return {
           type: 'bar',
           data: {
-            labels: wlabels,
+            labels: L,
             datasets: [
               {
                 type: 'bar',
@@ -1011,7 +1207,7 @@
               {
                 type: 'line',
                 label: 'Moy. € / compte distinct (semaine)',
-                data: weeklyPay.map(function (w) {
+                data: W.map(function (w) {
                   return w.avgPerAccountEur;
                 }),
                 yAxisID: 'y1',
@@ -1021,35 +1217,6 @@
                 pointRadius: 3,
                 tension: 0.15,
                 order: 4,
-              },
-              {
-                type: 'line',
-                label: 'Comptes distincts (payment)',
-                data: weeklyPay.map(function (w) {
-                  return w.nDistinctPayers != null ? w.nDistinctPayers : 0;
-                }),
-                yAxisID: 'y2',
-                borderColor: pal.weeklyActivityCp,
-                backgroundColor: 'transparent',
-                borderWidth: 2,
-                pointRadius: 3,
-                tension: 0.12,
-                order: 3,
-              },
-              {
-                type: 'line',
-                label: 'Lignes payment (tx)',
-                data: weeklyPay.map(function (w) {
-                  return w.nPay != null ? w.nPay : 0;
-                }),
-                yAxisID: 'y2',
-                borderColor: pal.weeklyActivityTx,
-                backgroundColor: 'transparent',
-                borderWidth: 2,
-                borderDash: [4, 3],
-                pointRadius: 2,
-                tension: 0.12,
-                order: 2,
               },
             ],
           },
@@ -1064,19 +1231,15 @@
                   afterBody: function (items) {
                     if (!items.length) return '';
                     var idx = items[0].dataIndex;
-                    if (idx < 0 || !weeklyPay[idx]) return '';
-                    var w = weeklyPay[idx];
-                    return w.nDistinctPayers != null
-                      ? 'Semaine : ' + w.nPay + ' tx · ' + w.nDistinctPayers + ' comptes · moy. ' + fmtEur(w.avgPerAccountEur) + ' / compte'
+                    if (idx < 0 || !W[idx]) return '';
+                    var row = W[idx];
+                    return row.nDistinctPayers != null
+                      ? 'Semaine : ' + row.nPay + ' tx · ' + row.nDistinctPayers + ' comptes · moy. ' + fmtEur(row.avgPerAccountEur) + ' / compte'
                       : '';
                   },
                   label: function (ctx) {
                     var v = ctx.parsed.y;
                     if (v == null) return ctx.dataset.label;
-                    var yid = ctx.dataset.yAxisID;
-                    if (yid === 'y2') {
-                      return ctx.dataset.label + ' : ' + fmtN(v);
-                    }
                     return ctx.dataset.label + ' : ' + fmtEur(v);
                   },
                 },
@@ -1091,18 +1254,89 @@
               },
               y1: {
                 position: 'right',
-                stack: 'weekly-pay-right',
-                stackWeight: 1,
                 beginAtZero: true,
                 grid: { drawOnChartArea: false },
                 ticks: { callback: function (val) { return fmtEurAxis(val); } },
               },
-              y2: {
-                position: 'right',
-                stack: 'weekly-pay-right',
-                stackWeight: 1,
+            },
+          },
+        };
+      }
+
+      if (elW) {
+        var chWeekly = monitorNewChart(elW, makeWeeklyVolumeCfg(MONITOR_PREVIEW_POINTS));
+        ensureChartHorizontalScroll(chWeekly.canvas, weeklyPay.length, {
+          minLabels: MONITOR_SCROLL_SUPPRESS_MIN,
+        });
+        if (wrapW) {
+          monitorBindChartExpand(
+            wrapW,
+            'Paiements : volume par semaine + moy. € / compte',
+            makeWeeklyVolumeCfg
+          );
+        }
+      }
+
+      var elActW = document.getElementById('chartPaymentWeeklyActivity');
+      var wrapActW = elActW && elActW.parentElement;
+      function makeWeeklyActivityCfg(nLast) {
+        var start = nLast != null ? Math.max(0, weeklyPay.length - nLast) : 0;
+        var W = weeklyPay.slice(start);
+        var L = W.map(function (w) {
+          return w.weekStart;
+        });
+        return {
+          type: 'line',
+          data: {
+            labels: L,
+            datasets: [
+              {
+                label: 'Comptes distincts (payment)',
+                data: W.map(function (w) {
+                  return w.nDistinctPayers != null ? w.nDistinctPayers : 0;
+                }),
+                borderColor: pal.weeklyActivityCp,
+                backgroundColor: 'transparent',
+                borderWidth: 2,
+                pointRadius: 3,
+                tension: 0.12,
+                order: 2,
+              },
+              {
+                label: 'Lignes payment (tx)',
+                data: W.map(function (w) {
+                  return w.nPay != null ? w.nPay : 0;
+                }),
+                borderColor: pal.weeklyActivityTx,
+                backgroundColor: 'transparent',
+                borderWidth: 2,
+                borderDash: [4, 3],
+                pointRadius: 2,
+                tension: 0.12,
+                order: 1,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function (ctx) {
+                    var v = ctx.parsed.y;
+                    if (v == null) return ctx.dataset.label;
+                    return ctx.dataset.label + ' : ' + fmtN(v);
+                  },
+                },
+              },
+            },
+            scales: {
+              x: { ticks: { maxRotation: 45, minRotation: 0 } },
+              y: {
                 beginAtZero: true,
-                grid: { drawOnChartArea: false },
                 ticks: {
                   callback: function (val) {
                     return fmtN(val);
@@ -1111,12 +1345,21 @@
               },
             },
           },
+        };
+      }
+
+      if (elActW) {
+        var chWAct = monitorNewChart(elActW, makeWeeklyActivityCfg(MONITOR_PREVIEW_POINTS));
+        ensureChartHorizontalScroll(chWAct.canvas, weeklyPay.length, {
+          minLabels: MONITOR_SCROLL_SUPPRESS_MIN,
         });
-        var sWeek = ensureChartHorizontalScroll(chWeekly.canvas, wlabels.length, {
-          pxPerLabel: 40,
-          maxWidth: 8000,
-        });
-        if (sWeek) monitorPopulateStickyLegend(chWeekly, sWeek);
+        if (wrapActW) {
+          monitorBindChartExpand(
+            wrapActW,
+            'Paiements : activité par semaine (comptes & tx)',
+            makeWeeklyActivityCfg
+          );
+        }
       }
     }
   };

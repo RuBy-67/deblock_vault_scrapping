@@ -7,6 +7,58 @@ require_once __DIR__ . '/format.php';
 /** Nombre de lignes pour le tableau « Derniers transferts ». */
 const MONITOR_RECENT_TRANSFERS_LIMIT = 100;
 
+/** Taille max des séries journalières dans le JSON graphiques « compact » (réseau). */
+const MONITOR_CHART_COMPACT_DAILY_TAIL = 18;
+
+/** Taille max de weeklyPay dans le JSON graphiques « compact ». */
+const MONITOR_CHART_COMPACT_WEEKLY_TAIL = 14;
+
+/**
+ * Réduit les tableaux de séries temporelles dans le payload Chart.js (mode aperçu / ressources).
+ * Ajoute _chartMeta.mode = compact pour déclencher un chargement full à la demande (modal).
+ *
+ * @return string JSON (échappement identique au reste du dashboard)
+ */
+function monitor_dashboard_compact_chart_payload_json(string $chartPayloadJson): string
+{
+    $payload = json_decode($chartPayloadJson, true);
+    if (!is_array($payload)) {
+        return $chartPayloadJson;
+    }
+
+    $dailyTail = MONITOR_CHART_COMPACT_DAILY_TAIL;
+    $weeklyTail = MONITOR_CHART_COMPACT_WEEKLY_TAIL;
+
+    $keysDailyAligned = [
+        'daily', 'dailyClass', 'interestDaily', 'nodeVolumeDaily',
+        'paymentAvgDaily', 'vaultDaily', 'vaultDeltaDaily', 'gasDaily',
+    ];
+
+    if (!empty($payload['daily']) && is_array($payload['daily'])) {
+        $n = count($payload['daily']);
+        if ($n > $dailyTail) {
+            foreach ($keysDailyAligned as $k) {
+                if (!isset($payload[$k]) || !is_array($payload[$k])) {
+                    continue;
+                }
+                $payload[$k] = array_slice($payload[$k], -$dailyTail);
+            }
+        }
+    }
+
+    if (isset($payload['weeklyPay']) && is_array($payload['weeklyPay']) && count($payload['weeklyPay']) > $weeklyTail) {
+        $payload['weeklyPay'] = array_slice($payload['weeklyPay'], -$weeklyTail);
+    }
+
+    $payload['_chartMeta'] = [
+        'mode' => 'compact',
+        'dailyTail' => $dailyTail,
+        'weeklyTail' => $weeklyTail,
+    ];
+
+    return json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS);
+}
+
 /**
  * Filtres SQL communs (dates, contrepartie).
  *

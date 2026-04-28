@@ -121,6 +121,7 @@ $ogDescription = 'Tableau de bord : flux on-chain du noeud, volumes, classificat
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js" crossorigin="anonymous"></script>
   <script src="charts.js"></script>
   <?php endif; ?>
+  <script>window.monitorDeferEndpoint = <?= json_encode($deferEndpoint, JSON_UNESCAPED_SLASHES) ?>;</script>
   <script>
 (function () {
   var mount = document.getElementById('monitor-deferred-mount');
