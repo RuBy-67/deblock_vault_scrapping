@@ -59,7 +59,7 @@ $ogDescription = 'Tableau de bord : flux on-chain du noeud, volumes, classificat
       Noeud : <code><?= htmlspecialchars($cfg['node_address']) ?></code>
       Contrat token : <code><?= htmlspecialchars($cfg['token_contract']) ?></code>
       Montants jeton affichés comme <strong>équivalent euro</strong> (1 unité sur chaîne ≈ 1 €).
-      Prochaine mise à jour à <strong>H:30</strong> :
+      Prochaine mise à jour dans
       <span id="next-update-countdown">calcul…</span>.
     </p>
   </header>
@@ -166,14 +166,16 @@ $ogDescription = 'Tableau de bord : flux on-chain du noeud, volumes, classificat
     next.setSeconds(0, 0);
     if (now.getMinutes() < 30) {
       next.setMinutes(30);
+    } else if (now.getMinutes() < 60) {
+      next.setHours(now.getHours() + 1, 0, 0, 0);
     } else {
-      next.setHours(now.getHours() + 1, 30, 0, 0);
+      next.setHours(now.getHours() + 1, 0, 0, 0);
     }
     var diff = Math.max(0, next.getTime() - now.getTime());
     var totalSec = Math.floor(diff / 1000);
     var mm = Math.floor(totalSec / 60);
     var ss = totalSec % 60;
-    el.textContent = next.getHours() + 'h30 (dans ' + fmt2(mm) + ':' + fmt2(ss) + ')';
+    el.textContent = fmt2(mm) + ':' + fmt2(ss);
   }
 
   tick();
