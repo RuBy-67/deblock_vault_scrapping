@@ -1,4 +1,4 @@
-# Deblock Vault — ingestion chaîne → MySQL & dashboard
+# Deblock Vault -ingestion chaîne → MySQL & dashboard
 
 Démo / prod interne : [dashboard](https://deblock-vault.rb-rubydev.fr/dashboard/)
 
@@ -8,10 +8,10 @@ Un seul script d’initialisation : **`sql/schema.sql`**.
 
 - Tables **opérationnelles** : `sync_state`, `raw_transfers`, `tx_gas`, `classified_events`, `wallet_estimates` (optionnel).
 - Tables **tampon / métriques** (pré-calculées par des workers Node) :
-  - **`daily_metrics`** — agrégats par jour (flux, types d’événements, gas).
-  - **`classification_daily`** / **`classification_confidence_daily`** — volumes par type et par bucket de confiance (page **Quality**).
-  - **`wallet_peer_daily`** — par jour et par « peer » (contrepartie brute in/out + sommes payment/top_up).
-  - **`wallet_holding_daily`** — par jour et par wallet (`ce.counterparty`) pour payment/top_up.
+  - **`daily_metrics`** -agrégats par jour (flux, types d’événements, gas).
+  - **`classification_daily`** / **`classification_confidence_daily`** -volumes par type et par bucket de confiance (page **Quality**).
+  - **`wallet_peer_daily`** -par jour et par « peer » (contrepartie brute in/out + sommes payment/top_up).
+  - **`wallet_holding_daily`** -par jour et par wallet (`ce.counterparty`) pour payment/top_up.
 
 Importer le script dans la base (phpMyAdmin ou `mysql`), puis configurer **`.env`** à partir de **`.env.example`**.
 
@@ -23,7 +23,7 @@ Les commandes lisent le **`.env` à la racine** du projet.
 |----------|---------|------|
 | `npm run sync` | `sync.mjs` | RPC : logs `Transfer` du **`TOKEN_CONTRACT`** où **`NODE_ADDRESS`** est `from` ou `to` → **`raw_transfers`** ; receipt → **`tx_gas`** (une ligne par `tx_hash`). |
 | `npm run classify` | `classify.mjs` | Heuristique métier → **`classified_events`** (intérêts, paiements, top-up, etc.). Voir en-tête du fichier et variables `PAIR_*`, `INTEREST_*`, `CLASSIFY_FULL_REBUILD` dans `.env.example`. |
-| `npm run pipeline` | — | Enchaîne `sync` puis `classify`. |
+| `npm run pipeline` | -| Enchaîne `sync` puis `classify`. |
 | `npm run daily-metrics` | `build_daily_metrics.mjs` | Met à jour **`daily_metrics`**, **`classification_daily`**, **`classification_confidence_daily`** (incrémental par défaut ; voir `.env.example`). |
 | `npm run wallet-metrics` | `build_wallet_metrics.mjs` | Met à jour **`wallet_peer_daily`** et **`wallet_holding_daily`** (même logique incrémentale / `--full`). |
 
@@ -63,11 +63,11 @@ Montant du `Transfer` en **plus petite unité** du jeton (`uint256`), stocké en
 
 Interface découpée en **pages dédiées** (chargement différé des blocs lourds via endpoints `defer_*.php`) :
 
-- **`index.php`** — vue principale, KPIs, graphiques (Chart.js).
-- **`wallets.php`** — adresses actives, wallets team, gros wallets (accéléré par `wallet_*_daily` + `daily_metrics` si disponibles).
-- **`transfers.php`** — derniers transferts seuls (requête lourde isolée ; pagination `pt`).
-- **`quality.php`** — qualité de classification (résumés / buckets ; accéléré par `classification_*` si à jour).
-- **`concentration.php`** — concentration des holders, métriques type Gini / cohortes (calculs lifetime côté SQL).
+- **`index.php`** -vue principale, KPIs, graphiques (Chart.js).
+- **`wallets.php`** -adresses actives, wallets team, gros wallets (accéléré par `wallet_*_daily` + `daily_metrics` si disponibles).
+- **`transfers.php`** -derniers transferts seuls (requête lourde isolée ; pagination `pt`).
+- **`quality.php`** -qualité de classification (résumés / buckets ; accéléré par `classification_*` si à jour).
+- **`concentration.php`** -concentration des holders, métriques type Gini / cohortes (calculs lifetime côté SQL).
 
 Les vues **flux** et **coûts** (graphiques + KPIs) sont regroupées sur **`index.php`** ; il n’y a plus de pages séparées pour cela.
 

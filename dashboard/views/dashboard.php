@@ -28,6 +28,20 @@ $ogDescription = 'Tableau de bord : flux on-chain du noeud, volumes, classificat
 <!DOCTYPE html>
 <html lang="fr" prefix="og: https://ogp.me/ns#">
 <head>
+  <script>
+(function () {
+  try {
+    var k = 'monitor-theme';
+    var s = localStorage.getItem(k);
+    var d = document.documentElement;
+    if (s === 'dark') d.setAttribute('data-theme', 'dark');
+    else if (s === 'light') d.removeAttribute('data-theme');
+    else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      d.setAttribute('data-theme', 'dark');
+    }
+  } catch (e) { /* ignore */ }
+})();
+  </script>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Monitoring noeud EURCV</title>
@@ -50,9 +64,12 @@ $ogDescription = 'Tableau de bord : flux on-chain du noeud, volumes, classificat
 </head>
 <body>
   <header class="header">
-    <div class="header__brand">
-      <img src="lib/deblock.png" alt="Deblock" class="header__logo" width="44" height="44" decoding="async">
-      <h1>Monitoring noeud SG- Techblock</h1>
+    <div class="header__top">
+      <div class="header__brand">
+        <img src="lib/deblock.png" alt="Deblock" class="header__logo" width="44" height="44" decoding="async">
+        <h1>Monitoring noeud SG- Techblock</h1>
+      </div>
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Thème"></button>
     </div>
     <p class="muted">
       Noeud : <code><?= htmlspecialchars($cfg['node_address']) ?></code>
@@ -218,6 +235,41 @@ $ogDescription = 'Tableau de bord : flux on-chain du noeud, volumes, classificat
       navigator.clipboard.writeText(text).then(ok).catch(fail);
     } else {
       fail();
+    }
+  });
+})();
+  </script>
+  <script>
+(function () {
+  var key = 'monitor-theme';
+  var root = document.documentElement;
+  var btn = document.getElementById('theme-toggle');
+  if (!btn) return;
+
+  function explicitDark() {
+    return root.getAttribute('data-theme') === 'dark';
+  }
+
+  function syncButton() {
+    var dark = explicitDark();
+    btn.textContent = dark ? 'Jour' : 'Nuit';
+    btn.setAttribute('aria-label', dark ? 'Passer au thème clair' : 'Passer au thème sombre');
+  }
+
+  syncButton();
+
+  btn.addEventListener('click', function () {
+    var nextDark = !explicitDark();
+    if (nextDark) {
+      root.setAttribute('data-theme', 'dark');
+      try { localStorage.setItem(key, 'dark'); } catch (e) { /* ignore */ }
+    } else {
+      root.removeAttribute('data-theme');
+      try { localStorage.setItem(key, 'light'); } catch (e) { /* ignore */ }
+    }
+    syncButton();
+    if (typeof window.monitorInitCharts === 'function') {
+      window.monitorInitCharts();
     }
   });
 })();

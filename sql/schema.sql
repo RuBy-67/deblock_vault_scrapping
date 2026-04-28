@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS wallet_estimates (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------------
--- Agrégats journaliers (dashboard / flows / costs) — remplis par build_daily_metrics.mjs
+-- Agrégats journaliers (dashboard / flows / costs) -remplis par build_daily_metrics.mjs
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS daily_metrics (
   day DATE NOT NULL,
@@ -113,7 +113,7 @@ CREATE TABLE IF NOT EXISTS daily_metrics (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------------
--- Pré-agrégation page Wallets — rempli par build_wallet_metrics.mjs
+-- Pré-agrégation page Wallets -rempli par build_wallet_metrics.mjs
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS wallet_peer_daily (
   day DATE NOT NULL,
@@ -147,7 +147,7 @@ CREATE TABLE IF NOT EXISTS wallet_holding_daily (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------------
--- Qualité de classification (page Quality) — rempli par build_daily_metrics.mjs
+-- Qualité de classification (page Quality) -rempli par build_daily_metrics.mjs
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS classification_daily (
   day DATE NOT NULL,

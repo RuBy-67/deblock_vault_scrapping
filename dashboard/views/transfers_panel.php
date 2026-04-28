@@ -40,7 +40,7 @@ $tpt = (int) (($paging['transfers']['total'] ?? 0));
 $pp = (int) (($paging['transfers']['perPage'] ?? 50));
 ?>
 <details class="panel panel-details" open>
-  <summary class="panel-details__summary">Derniers transferts (<?= (int) $recentTransfersLimit ?> par page)</summary>
+  <summary class="panel-details__summary">Derniers transferts</summary>
   <p class="muted panel-details__intro">
     Même périmètre que les totaux : <strong>sans</strong> lignes mint/burn <code>0x0</code>.
     Page dédiée : la requête peut prendre du temps sur de gros volumes.

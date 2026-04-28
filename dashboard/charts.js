@@ -129,6 +129,45 @@
     return out;
   }
 
+  function monitorChartThemeColors() {
+    var st = getComputedStyle(document.documentElement);
+    return {
+      tick: st.getPropertyValue('--chart-tick').trim() || '#64748b',
+      grid: st.getPropertyValue('--chart-grid').trim() || 'rgba(0,0,0,0.06)',
+    };
+  }
+
+  function monitorChartApplyTheme(options) {
+    if (!options || typeof Chart === 'undefined') return;
+    var tc = monitorChartThemeColors();
+    if (options.plugins && options.plugins.legend && options.plugins.legend.display !== false) {
+      var labels = options.plugins.legend.labels;
+      if (labels !== false) {
+        options.plugins.legend.labels = Object.assign({}, labels || {});
+        if (!options.plugins.legend.labels.color) {
+          options.plugins.legend.labels.color = tc.tick;
+        }
+      }
+    }
+    if (options.scales) {
+      Object.keys(options.scales).forEach(function (k) {
+        var sc = options.scales[k];
+        if (!sc || typeof sc !== 'object') return;
+        var ticks = Object.assign({}, sc.ticks || {});
+        ticks.color = tc.tick;
+        sc.ticks = ticks;
+        var grid = Object.assign({}, sc.grid || {});
+        grid.color = tc.grid;
+        sc.grid = grid;
+      });
+    }
+  }
+
+  function monitorNewChart(ctx, config) {
+    if (config && config.options) monitorChartApplyTheme(config.options);
+    return monitorNewChart(ctx, config);
+  }
+
   function isoWeekStartFromDay(dayStr) {
     var d = new Date(dayStr + 'T00:00:00Z');
     if (isNaN(d.getTime())) return dayStr;
@@ -211,7 +250,7 @@
 
       var elAct = document.getElementById('chartActiviteJour');
       if (elAct) {
-        var chAct = new Chart(elAct, {
+        var chAct = monitorNewChart(elAct, {
           type: 'bar',
           data: {
             labels: labels,
@@ -254,7 +293,7 @@
 
       var elNodeVol = document.getElementById('chartNodeVolumeJour');
       if (elNodeVol) {
-        var chNodeVol = new Chart(elNodeVol, {
+        var chNodeVol = monitorNewChart(elNodeVol, {
           type: 'line',
           data: {
             labels: labels,
@@ -309,7 +348,7 @@
 
       var elInt = document.getElementById('chartInterestJour');
       if (elInt) {
-        var chInt = new Chart(elInt, {
+        var chInt = monitorNewChart(elInt, {
           type: 'bar',
           data: {
             labels: labels,
@@ -362,7 +401,7 @@
 
       var elPayTopupCombined = document.getElementById('chartPaymentTopupCombined');
       if (elPayTopupCombined && dailyClass && dailyClass.length) {
-        var chPayTop = new Chart(elPayTopupCombined, {
+        var chPayTop = monitorNewChart(elPayTopupCombined, {
           type: 'bar',
           data: {
             labels: labels,
@@ -460,7 +499,7 @@
       if (elVault && vaultDaily && vaultDaily.length) {
         var vaultWeekly = weeklyFromCumulativeDaily(vaultDaily, 'vaultEur');
         var vaultTickIdx = pickTickIndices(vaultWeekly.length, 8);
-        var chVault = new Chart(elVault, {
+        var chVault = monitorNewChart(elVault, {
           type: 'line',
           data: {
             labels: vaultWeekly.map(function (d) {
@@ -526,7 +565,7 @@
       // Graphique "écart journalier" : top_up - payment (v1) pour chaque jour.
       var elVaultDelta = document.getElementById('chartVaultDeltaDaily');
       if (elVaultDelta && vaultDeltaDaily && vaultDeltaDaily.length) {
-        var chVaultD = new Chart(elVaultDelta, {
+        var chVaultD = monitorNewChart(elVaultDelta, {
           type: 'line',
           data: {
             labels: vaultDeltaDaily.map(function (d) {
@@ -581,7 +620,7 @@
 
       var elAvgPay = document.getElementById('chartPaymentAvgDaily');
       if (elAvgPay) {
-        var chAvgPay = new Chart(elAvgPay, {
+        var chAvgPay = monitorNewChart(elAvgPay, {
           type: 'line',
           data: {
             labels: labels,
@@ -639,7 +678,7 @@
 
       var elFluxNet = document.getElementById('chartFluxNetDaily');
       if (elFluxNet && vaultDeltaDaily && vaultDeltaDaily.length) {
-        var chFluxNet = new Chart(elFluxNet, {
+        var chFluxNet = monitorNewChart(elFluxNet, {
           type: 'bar',
           data: {
             labels: vaultDeltaDaily.map(function (d) {
@@ -686,7 +725,7 @@
 
       var elPayTopupCount = document.getElementById('chartPaymentTopupCount');
       if (elPayTopupCount) {
-        var chPayCnt = new Chart(elPayTopupCount, {
+        var chPayCnt = monitorNewChart(elPayTopupCount, {
           type: 'bar',
           data: {
             labels: labels,
@@ -741,7 +780,7 @@
       if (elGas) {
         var gasWeekly = weeklyFromCumulativeDaily(gasDaily, 'gasEth');
         var gasTickIdx = pickTickIndices(gasWeekly.length, 8);
-        var chGas = new Chart(elGas, {
+        var chGas = monitorNewChart(elGas, {
           type: 'line',
           data: {
             labels: gasWeekly.map(function (d) {
@@ -815,7 +854,7 @@
       var avgC = weeklyMeta.avgCalWeekEur;
       var elW = document.getElementById('chartPaymentWeekly');
       if (elW) {
-        var chWeekly = new Chart(elW, {
+        var chWeekly = monitorNewChart(elW, {
           type: 'bar',
           data: {
             labels: wlabels,

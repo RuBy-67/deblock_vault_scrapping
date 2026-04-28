@@ -51,8 +51,8 @@ declare(strict_types=1);
   <details class="panel-details">
     <summary class="panel-details__summary">Comment ce score est-il choisi ?</summary>
     <div class="muted panel-details__intro">
-      <p><strong>85</strong> — Transferts classés en <strong>interest</strong> avec une jambe jumelle : aller-retour strict même portefeuille (vers le nœud puis retour), dans la fenêtre de temps configurée, montants sous le plafond lié à la « taille » approximative du wallet, au plus <strong>une</strong> paire interest par wallet et par jour calendaire. Les deux jambes ont le même score.</p>
-      <p><strong>60</strong> — <strong>payment</strong> (entrant) ou <strong>top_up</strong> (sortant) lorsqu’aucune paire interest n’a été retenue : classification par défaut à partir du sens du flux seul. Confiance plus basse car la règle est moins contraignante.</p>
+      <p><strong>85</strong> -Transferts classés en <strong>interest</strong> avec une jambe jumelle : aller-retour strict même portefeuille (vers le nœud puis retour), dans la fenêtre de temps configurée, montants sous le plafond lié à la « taille » approximative du wallet, au plus <strong>une</strong> paire interest par wallet et par jour calendaire. Les deux jambes ont le même score.</p>
+      <p><strong>60</strong> -<strong>payment</strong> (entrant) ou <strong>top_up</strong> (sortant) lorsqu’aucune paire interest n’a été retenue : classification par défaut à partir du sens du flux seul. Confiance plus basse car la règle est moins contraignante.</p>
       <p>Avec la v1, on s’attend surtout aux buckets <strong>75–89</strong> (85) et <strong>60–74</strong> (60) ; les autres tranches restent vides sauf données historiques ou évolution des règles.</p>
     </div>
   </details>
