@@ -40,10 +40,12 @@
   --chart-topup-bar-border: #6b6b6b;
   --chart-flux-negative-fill: rgba(220, 38, 38, 0.52);
   --chart-flux-negative-stroke: #b91c1c;
-  /* Volume payment par semaine (barres + moy. / compte distinct) */
+  /* Volume payment par semaine (barres + courbes € + activité nb.) */
   --chart-weekly-bar-fill: rgba(30, 64, 110, 0.72);
   --chart-weekly-bar-stroke: #1e3f73;
   --chart-weekly-line-account: #6d28d9;
+  --chart-weekly-line-activity-cp: #b45309;
+  --chart-weekly-line-activity-tx: #475569;
   --view-switch-text: #334155;
   --view-switch-active-border: #b5b8bc;
   --view-switch-active-text: #1a1a1a;
@@ -122,6 +124,8 @@ html[data-theme="dark"] {
   --chart-weekly-bar-fill: rgba(1, 212, 186, 0.42);
   --chart-weekly-bar-stroke: #01d4ba;
   --chart-weekly-line-account: #c4b5fd;
+  --chart-weekly-line-activity-cp: #fbbf24;
+  --chart-weekly-line-activity-tx: #94a3b8;
 }
 
 body {

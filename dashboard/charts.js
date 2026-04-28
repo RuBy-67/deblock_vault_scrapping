@@ -233,6 +233,8 @@
       weeklyBarFill: g('--chart-weekly-bar-fill', 'rgba(30,64,110,0.72)'),
       weeklyBarStroke: g('--chart-weekly-bar-stroke', '#1e3f73'),
       weeklyLineAccount: g('--chart-weekly-line-account', '#6d28d9'),
+      weeklyActivityCp: g('--chart-weekly-line-activity-cp', '#ca8a04'),
+      weeklyActivityTx: g('--chart-weekly-line-activity-tx', '#64748b'),
     };
   }
 
@@ -1004,7 +1006,7 @@
                 backgroundColor: pal.weeklyBarFill,
                 borderColor: pal.weeklyBarStroke,
                 borderWidth: 1,
-                order: 2,
+                order: 1,
               },
               {
                 type: 'line',
@@ -1018,7 +1020,36 @@
                 borderWidth: 2,
                 pointRadius: 3,
                 tension: 0.15,
-                order: 1,
+                order: 4,
+              },
+              {
+                type: 'line',
+                label: 'Comptes distincts (payment)',
+                data: weeklyPay.map(function (w) {
+                  return w.nDistinctPayers != null ? w.nDistinctPayers : 0;
+                }),
+                yAxisID: 'y2',
+                borderColor: pal.weeklyActivityCp,
+                backgroundColor: 'transparent',
+                borderWidth: 2,
+                pointRadius: 3,
+                tension: 0.12,
+                order: 3,
+              },
+              {
+                type: 'line',
+                label: 'Lignes payment (tx)',
+                data: weeklyPay.map(function (w) {
+                  return w.nPay != null ? w.nPay : 0;
+                }),
+                yAxisID: 'y2',
+                borderColor: pal.weeklyActivityTx,
+                backgroundColor: 'transparent',
+                borderWidth: 2,
+                borderDash: [4, 3],
+                pointRadius: 2,
+                tension: 0.12,
+                order: 2,
               },
             ],
           },
@@ -1042,6 +1073,10 @@
                   label: function (ctx) {
                     var v = ctx.parsed.y;
                     if (v == null) return ctx.dataset.label;
+                    var yid = ctx.dataset.yAxisID;
+                    if (yid === 'y2') {
+                      return ctx.dataset.label + ' : ' + fmtN(v);
+                    }
                     return ctx.dataset.label + ' : ' + fmtEur(v);
                   },
                 },
@@ -1056,9 +1091,23 @@
               },
               y1: {
                 position: 'right',
+                stack: 'weekly-pay-right',
+                stackWeight: 1,
                 beginAtZero: true,
                 grid: { drawOnChartArea: false },
                 ticks: { callback: function (val) { return fmtEurAxis(val); } },
+              },
+              y2: {
+                position: 'right',
+                stack: 'weekly-pay-right',
+                stackWeight: 1,
+                beginAtZero: true,
+                grid: { drawOnChartArea: false },
+                ticks: {
+                  callback: function (val) {
+                    return fmtN(val);
+                  },
+                },
               },
             },
           },
