@@ -1313,6 +1313,7 @@ LIMIT {$perPage} OFFSET {$offActivity}
     $topCounterparties = $stCp->fetchAll();
 
     $teamWalletActivity = [];
+    $teamWalletMap = [];
     if (($f['counterparty'] ?? '') === '') {
         $sqlTeamActivity = "
 SELECT
@@ -1321,11 +1322,18 @@ SELECT
   SUM(CASE WHEN rt.direction = 'out' THEN 1 ELSE 0 END) AS n_out,
   SUM(CASE WHEN rt.direction = 'in' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE 0 END) AS sum_in_raw,
   SUM(CASE WHEN rt.direction = 'out' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE 0 END) AS sum_out_raw,
+  SUM(CASE WHEN ce.event_type = 'payment' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE 0 END) AS sum_payment_raw,
+  SUM(CASE WHEN ce.event_type = 'top_up' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE 0 END) AS sum_topup_raw,
+  (
+    SUM(CASE WHEN ce.event_type = 'top_up' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE 0 END)
+    -
+    SUM(CASE WHEN ce.event_type = 'payment' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE 0 END)
+  ) AS wallet_tokens_raw,
   MIN(rt.block_time) AS first_seen,
   MAX(rt.block_time) AS last_seen,
   COUNT(*) AS n_total
 FROM raw_transfers rt
-{$cpJoinLeftSql}
+LEFT JOIN classified_events ce ON ce.raw_transfer_id = rt.id
 WHERE $w
   $cpSql
   $excludeZeroPeerSql
@@ -1337,6 +1345,12 @@ LIMIT 200
         $stTeamActivity = $pdo->prepare($sqlTeamActivity);
         $stTeamActivity->execute(array_merge($params, [$teamCutoffDate]));
         $teamWalletActivity = $stTeamActivity->fetchAll() ?: [];
+        foreach ($teamWalletActivity as $tw) {
+            $cp = strtolower((string) ($tw['cp'] ?? ''));
+            if ($cp !== '' && preg_match('/^0x[a-f0-9]{40}$/', $cp)) {
+                $teamWalletMap[$cp] = true;
+            }
+        }
     }
 
     $sqlCountTopWallets = "
@@ -1428,6 +1442,7 @@ LIMIT {$lim} OFFSET {$offTransfers}
     return [
         'topCounterparties' => $topCounterparties,
         'teamWalletActivity' => $teamWalletActivity,
+        'teamWalletMap' => $teamWalletMap,
         'topWalletsByToken' => $topWalletsByToken,
         'rows' => $rows,
         'recentTransfersLimit' => $lim,

@@ -5,6 +5,7 @@ declare(strict_types=1);
 /** @var string $counterparty */
 /** @var list<array<string, mixed>> $topCounterparties */
 /** @var list<array<string, mixed>> $teamWalletActivity */
+/** @var array<string, bool> $teamWalletMap */
 /** @var list<array<string, mixed>> $topWalletsByToken */
 /** @var list<array<string, mixed>> $rows */
 /** @var int $recentTransfersLimit */
@@ -18,6 +19,11 @@ declare(strict_types=1);
 $dateFrom = isset($dateFrom) ? (string) $dateFrom : '';
 $dateTo = isset($dateTo) ? (string) $dateTo : '';
 $counterparty = isset($counterparty) ? (string) $counterparty : '';
+$teamWalletMap = isset($teamWalletMap) && is_array($teamWalletMap) ? $teamWalletMap : [];
+$isTeamWallet = static function (string $addr) use ($teamWalletMap): bool {
+    $a = strtolower(trim($addr));
+    return $a !== '' && isset($teamWalletMap[$a]);
+};
 
 $walletsPageLink = static function (int $pa, int $pw, int $pt) use ($dateFrom, $dateTo, $counterparty): string {
     return 'wallets.php?' . http_build_query([
@@ -61,14 +67,16 @@ $pp = (int) (($paging['transfers']['perPage'] ?? 50));
             $ni = (int) $tr['n_in'];
             $no = (int) $tr['n_out'];
             $hint = monitor_cp_row_hint($ni, $no);
+            $isTeam = $isTeamWallet($cpAdr);
         ?>
         <tr>
           <td class="mono cp-cell" style="font-size:0.82rem">
-            <a href="<?= htmlspecialchars($cpDashboardHref($cpAdr)) ?>" title="Filtrer le tableau de bord sur ce portefeuille"><?= htmlspecialchars(substr($cpAdr, 0, 12)) ?>…</a>
+            <a href="<?= htmlspecialchars($cpDashboardHref($cpAdr)) ?>" title="Filtrer le tableau de bord sur ce portefeuille" style="<?= $isTeam ? 'color:#b91c1c;font-weight:700;' : '' ?>"><?= htmlspecialchars(substr($cpAdr, 0, 12)) ?>…</a>
             <span class="cp-actions">
               <button type="button" class="btn-copy btn-copy--sm" data-copy="<?= htmlspecialchars($cpAdr) ?>" data-copy-label="Copier" title="Copier l’adresse complète">Copier</button>
               <a href="https://etherscan.io/address/<?= htmlspecialchars($cpAdr) ?>" target="_blank" rel="noopener" class="muted" style="font-size:0.75rem">Etherscan</a>
             </span>
+            <?php if ($isTeam) : ?><span class="muted" style="display:block;color:#b91c1c;font-size:0.75rem">TEAM</span><?php endif; ?>
           </td>
           <td><?= htmlspecialchars(fmt_int_fr($ni)) ?></td>
           <td><?= htmlspecialchars(fmt_int_fr($no)) ?></td>
@@ -110,6 +118,7 @@ $pp = (int) (($paging['transfers']['perPage'] ?? 50));
           <th>Total</th>
           <th>Vol. IN (≈ €)</th>
           <th>Vol. OUT (≈ €)</th>
+          <th>Approx token (≈ €)</th>
           <th>Premier / dernier</th>
           <th></th>
         </tr>
@@ -121,20 +130,23 @@ $pp = (int) (($paging['transfers']['perPage'] ?? 50));
             $ni = (int) $tr['n_in'];
             $no = (int) $tr['n_out'];
             $hint = monitor_cp_row_hint($ni, $no);
+            $isTeam = $isTeamWallet($cpAdr);
         ?>
         <tr>
           <td class="mono cp-cell" style="font-size:0.82rem">
-            <a href="<?= htmlspecialchars($cpDashboardHref($cpAdr)) ?>" title="Filtrer le tableau de bord sur ce portefeuille"><?= htmlspecialchars(substr($cpAdr, 0, 12)) ?>…</a>
+            <a href="<?= htmlspecialchars($cpDashboardHref($cpAdr)) ?>" title="Filtrer le tableau de bord sur ce portefeuille" style="<?= $isTeam ? 'color:#b91c1c;font-weight:700;' : '' ?>"><?= htmlspecialchars(substr($cpAdr, 0, 12)) ?>…</a>
             <span class="cp-actions">
               <button type="button" class="btn-copy btn-copy--sm" data-copy="<?= htmlspecialchars($cpAdr) ?>" data-copy-label="Copier" title="Copier l’adresse complète">Copier</button>
               <a href="https://etherscan.io/address/<?= htmlspecialchars($cpAdr) ?>" target="_blank" rel="noopener" class="muted" style="font-size:0.75rem">Etherscan</a>
             </span>
+            <?php if ($isTeam) : ?><span class="muted" style="display:block;color:#b91c1c;font-size:0.75rem">TEAM</span><?php endif; ?>
           </td>
           <td><?= htmlspecialchars(fmt_int_fr($ni)) ?></td>
           <td><?= htmlspecialchars(fmt_int_fr($no)) ?></td>
           <td><?= htmlspecialchars(fmt_int_fr((int) $tr['n_total'])) ?></td>
           <td><?= htmlspecialchars(fmt_eur((string) ($tr['sum_in_raw'] ?? '0'))) ?></td>
           <td><?= htmlspecialchars(fmt_eur((string) ($tr['sum_out_raw'] ?? '0'))) ?></td>
+          <td><?= htmlspecialchars(fmt_eur_signed_raw((string) ($tr['wallet_tokens_raw'] ?? '0'))) ?></td>
           <td class="muted" style="font-size:0.82rem;white-space:nowrap">
             <?= htmlspecialchars(substr((string) $tr['first_seen'], 0, 10)) ?>
             → <?= htmlspecialchars(substr((string) $tr['last_seen'], 0, 10)) ?>
@@ -143,7 +155,7 @@ $pp = (int) (($paging['transfers']['perPage'] ?? 50));
         </tr>
         <?php endforeach; ?>
         <?php if (!$teamWalletActivity) : ?>
-        <tr><td colspan="8" class="muted">Aucun wallet team détecté sur cette période / filtre.</td></tr>
+        <tr><td colspan="9" class="muted">Aucun wallet team détecté sur cette période / filtre.</td></tr>
         <?php endif; ?>
       </tbody>
     </table>
@@ -173,14 +185,16 @@ $pp = (int) (($paging['transfers']['perPage'] ?? 50));
         <?php
             $cpAdr = (string) ($tr['cp'] ?? '');
             $walletRaw = (string) ($tr['wallet_tokens_raw'] ?? '0');
+            $isTeam = $isTeamWallet($cpAdr);
         ?>
         <tr>
           <td class="mono cp-cell" style="font-size:0.82rem">
-            <a href="<?= htmlspecialchars($cpDashboardHref($cpAdr)) ?>" title="Filtrer le tableau de bord sur ce portefeuille"><?= htmlspecialchars(substr($cpAdr, 0, 12)) ?>…</a>
+            <a href="<?= htmlspecialchars($cpDashboardHref($cpAdr)) ?>" title="Filtrer le tableau de bord sur ce portefeuille" style="<?= $isTeam ? 'color:#b91c1c;font-weight:700;' : '' ?>"><?= htmlspecialchars(substr($cpAdr, 0, 12)) ?>…</a>
             <span class="cp-actions">
               <button type="button" class="btn-copy btn-copy--sm" data-copy="<?= htmlspecialchars($cpAdr) ?>" data-copy-label="Copier" title="Copier l’adresse complète">Copier</button>
               <a href="https://etherscan.io/address/<?= htmlspecialchars($cpAdr) ?>" target="_blank" rel="noopener" class="muted" style="font-size:0.75rem">Etherscan</a>
             </span>
+            <?php if ($isTeam) : ?><span class="muted" style="display:block;color:#b91c1c;font-size:0.75rem">TEAM</span><?php endif; ?>
           </td>
           <td><?= htmlspecialchars(fmt_eur_signed_raw($walletRaw)) ?></td>
           <td><?= htmlspecialchars(fmt_eur((string) ($tr['sum_topup_raw'] ?? '0'))) ?></td>
@@ -231,6 +245,7 @@ $pp = (int) (($paging['transfers']['perPage'] ?? 50));
         <?php
             $rowCp = strtolower(trim((string) ($r['counterparty'] ?? '')));
             $rowCpOk = $rowCp !== '' && preg_match('/^0x[a-f0-9]{40}$/', $rowCp);
+            $isTeam = $rowCpOk ? $isTeamWallet($rowCp) : false;
         ?>
         <tr>
           <td><?= htmlspecialchars((string) $r['block_time']) ?></td>
@@ -238,8 +253,9 @@ $pp = (int) (($paging['transfers']['perPage'] ?? 50));
           <td><?= htmlspecialchars((string) ($r['event_type'] ?? '')) ?></td>
           <td class="mono cp-cell" title="<?= htmlspecialchars($rowCp) ?>">
             <?php if ($rowCpOk) : ?>
-            <a href="<?= htmlspecialchars($cpDashboardHref($rowCp)) ?>" title="Filtrer sur ce portefeuille"><?= htmlspecialchars(substr($rowCp, 0, 10)) ?>…</a>
+            <a href="<?= htmlspecialchars($cpDashboardHref($rowCp)) ?>" title="Filtrer sur ce portefeuille" style="<?= $isTeam ? 'color:#b91c1c;font-weight:700;' : '' ?>"><?= htmlspecialchars(substr($rowCp, 0, 10)) ?>…</a>
             <button type="button" class="btn-copy btn-copy--sm" data-copy="<?= htmlspecialchars($rowCp) ?>" data-copy-label="Copier" title="Copier l’adresse">Copier</button>
+            <?php if ($isTeam) : ?><span class="muted" style="display:block;color:#b91c1c;font-size:0.75rem">TEAM</span><?php endif; ?>
             <?php else : ?>
             —
             <?php endif; ?>
