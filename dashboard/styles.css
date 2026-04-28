@@ -36,6 +36,10 @@
   --chart-topup-line: #6b6b6b;
   --chart-topup-area: rgba(0, 0, 0, 0);
   --chart-topup-bar: rgba(107, 107, 107, 0.5);
+  --chart-pay-bar-border: #111111;
+  --chart-topup-bar-border: #6b6b6b;
+  --chart-flux-negative-fill: rgba(220, 38, 38, 0.52);
+  --chart-flux-negative-stroke: #b91c1c;
   /* Volume payment par semaine (4 séries lisibles en clair) */
   --chart-weekly-bar-fill: rgba(30, 64, 110, 0.72);
   --chart-weekly-bar-stroke: #1e3f73;
@@ -106,12 +110,17 @@ html[data-theme="dark"] {
   --chart-c3-area: rgba(148, 163, 184, 0.08);
   --chart-c4-stroke: rgba(1, 212, 186, 0.55);
   --chart-c5-stroke: #94a3b8;
+  /* Combiné payment / top_up : 4 teintes lisibles (pas que du gris) */
   --chart-pay-line: #01d4ba;
-  --chart-pay-area: rgba(1, 212, 186, 0.16);
-  --chart-pay-bar: rgba(1, 212, 186, 0.48);
-  --chart-topup-line: #7dd3c0;
-  --chart-topup-area: rgba(125, 211, 192, 0.06);
-  --chart-topup-bar: rgba(125, 211, 192, 0.38);
+  --chart-pay-area: rgba(1, 212, 186, 0.14);
+  --chart-pay-bar: rgba(129, 140, 248, 0.5);
+  --chart-pay-bar-border: #a5b4fc;
+  --chart-topup-line: #fb923c;
+  --chart-topup-area: rgba(0, 0, 0, 0);
+  --chart-topup-bar: rgba(232, 121, 249, 0.42);
+  --chart-topup-bar-border: #e879f9;
+  --chart-flux-negative-fill: rgba(248, 113, 113, 0.5);
+  --chart-flux-negative-stroke: #f87171;
   --chart-weekly-bar-fill: rgba(1, 212, 186, 0.42);
   --chart-weekly-bar-stroke: #01d4ba;
   --chart-weekly-line-active: #5eead4;
@@ -566,6 +575,59 @@ html[data-theme="dark"] .muted.wallet-team-badge {
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   scrollbar-gutter: stable;
+}
+
+.chart-scroll.chart-scroll--with-sticky-legend {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.chart-legend-sticky {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  flex: 0 0 auto;
+  align-self: stretch;
+  max-width: min(14rem, 42vw);
+  padding: 0.4rem 0.45rem 0.4rem 0;
+  margin: 0;
+  background: linear-gradient(90deg, var(--surface) 72%, transparent);
+  color: var(--text);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.chart-legend-sticky__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+
+.chart-legend-sticky__item:last-child {
+  margin-bottom: 0;
+}
+
+.chart-legend-sticky__sw {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  margin-top: 0.2rem;
+}
+
+.chart-legend-sticky__sw--line {
+  height: 3px;
+  margin-top: 0.45rem;
+  background: transparent !important;
+  border-radius: 1px;
+}
+
+.chart-scroll.chart-scroll--with-sticky-legend > .chart-canvas-wrap {
+  flex: 0 0 auto;
+  min-width: 0;
 }
 
 .chart-canvas-wrap {

@@ -34,39 +34,98 @@
    */
   function ensureChartHorizontalScroll(canvas, labelCount, options) {
     options = options || {};
-    if (!canvas) return;
+    if (!canvas) return null;
     var inner = canvas.parentElement;
-    if (!inner) return;
+    if (!inner) return null;
 
     var isMini = inner.classList && inner.classList.contains('vault-mini-chart');
     var pxPerLabel = options.pxPerLabel != null ? options.pxPerLabel : isMini ? 22 : 36;
     var maxW = options.maxWidth != null ? options.maxWidth : isMini ? 3200 : 9600;
     var minN = options.minLabels != null ? options.minLabels : 5;
 
-    if (!labelCount || labelCount < minN) {
-      inner.style.minWidth = '';
-      return;
-    }
-
     var scrollEl = inner.parentElement;
     if (!scrollEl || !scrollEl.classList || !scrollEl.classList.contains('chart-scroll')) {
+      scrollEl = null;
+    }
+
+    if (!labelCount || labelCount < minN) {
+      inner.style.minWidth = '';
+      if (scrollEl) {
+        var leg0 = scrollEl.querySelector('.chart-legend-sticky');
+        if (leg0) leg0.innerHTML = '';
+        scrollEl.classList.remove('chart-scroll--with-sticky-legend');
+      }
+      return null;
+    }
+
+    if (!scrollEl || !scrollEl.classList.contains('chart-scroll')) {
       scrollEl = document.createElement('div');
       scrollEl.className = 'chart-scroll';
       inner.parentNode.insertBefore(scrollEl, inner);
       scrollEl.appendChild(inner);
     }
 
+    if (options.stickyLegend) {
+      if (!scrollEl.querySelector('.chart-legend-sticky')) {
+        var aside = document.createElement('aside');
+        aside.className = 'chart-legend-sticky';
+        aside.setAttribute('aria-label', 'Légende du graphique');
+        scrollEl.insertBefore(aside, scrollEl.firstChild);
+      }
+      scrollEl.classList.add('chart-scroll--with-sticky-legend');
+    }
+
     var viewport = scrollEl.clientWidth || document.documentElement.clientWidth || 360;
     var targetW = Math.min(maxW, Math.max(viewport, labelCount * pxPerLabel));
     inner.style.minWidth = targetW + 'px';
 
-    // Par défaut, on positionne le viewport à droite (points les plus récents).
-    // L'utilisateur peut ensuite scroller vers la gauche pour l'historique.
     if (targetW > viewport) {
       requestAnimationFrame(function () {
         scrollEl.scrollLeft = scrollEl.scrollWidth;
       });
     }
+    return scrollEl;
+  }
+
+  function monitorDatasetSwatchColor(ds) {
+    var c = ds.borderColor;
+    if (Array.isArray(c)) c = c[0];
+    if (c == null || c === '') c = ds.backgroundColor;
+    if (Array.isArray(c)) c = c[0];
+    return typeof c === 'string' && c ? c : '#888';
+  }
+
+  function monitorPopulateStickyLegend(chart, scrollEl) {
+    if (!chart || !scrollEl) return;
+    var aside = scrollEl.querySelector('.chart-legend-sticky');
+    if (!aside) return;
+    aside.innerHTML = '';
+    var rootType = chart.config && chart.config.type ? chart.config.type : '';
+    chart.data.datasets.forEach(function (ds) {
+      if (ds.label == null || ds.label === '') return;
+      var row = document.createElement('div');
+      row.className = 'chart-legend-sticky__item';
+      var sw = document.createElement('span');
+      var isLine =
+        ds.type === 'line' || (ds.type !== 'bar' && rootType === 'line');
+      var col = monitorDatasetSwatchColor(ds);
+      var lineBorder = typeof ds.borderColor === 'string' ? ds.borderColor : col;
+      if (isLine) {
+        sw.className = 'chart-legend-sticky__sw chart-legend-sticky__sw--line';
+        sw.style.border = '2px solid ' + lineBorder;
+        if (Array.isArray(ds.borderDash) && ds.borderDash.length) {
+          sw.style.borderStyle = 'dashed';
+        }
+      } else {
+        sw.className = 'chart-legend-sticky__sw';
+        sw.style.background = col;
+      }
+      var txt = document.createElement('span');
+      txt.textContent = String(ds.label);
+      row.appendChild(sw);
+      row.appendChild(txt);
+      aside.appendChild(row);
+    });
   }
 
   /**
@@ -162,6 +221,10 @@
       topupLine: g('--chart-topup-line', '#6b6b6b'),
       topupArea: g('--chart-topup-area', 'rgba(0,0,0,0)'),
       topupBar: g('--chart-topup-bar', 'rgba(107,107,107,0.5)'),
+      payBarBorder: g('--chart-pay-bar-border', '#111111'),
+      topupBarBorder: g('--chart-topup-bar-border', '#6b6b6b'),
+      fluxNegFill: g('--chart-flux-negative-fill', 'rgba(220,38,38,0.52)'),
+      fluxNegStroke: g('--chart-flux-negative-stroke', '#b91c1c'),
       weeklyBarFill: g('--chart-weekly-bar-fill', 'rgba(30,64,110,0.72)'),
       weeklyBarStroke: g('--chart-weekly-bar-stroke', '#1e3f73'),
       weeklyLineActive: g('--chart-weekly-line-active', '#0f766e'),
@@ -354,7 +417,7 @@
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
             plugins: {
-              legend: { position: 'top' },
+              legend: { display: false },
               tooltip: {
                 callbacks: {
                   afterLabel: function (ctx) {
@@ -381,7 +444,8 @@
             },
           },
         });
-        ensureChartHorizontalScroll(chNodeVol.canvas, labels.length, {});
+        var sNode = ensureChartHorizontalScroll(chNodeVol.canvas, labels.length, { stickyLegend: true });
+        if (sNode) monitorPopulateStickyLegend(chNodeVol, sNode);
       }
 
       var elInt = document.getElementById('chartInterestJour');
@@ -406,7 +470,7 @@
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-              legend: { position: 'top' },
+              legend: { display: false },
               tooltip: {
                 callbacks: {
                   afterLabel: function (ctx) {
@@ -434,7 +498,8 @@
             },
           },
         });
-        ensureChartHorizontalScroll(chInt.canvas, labels.length, {});
+        var sInt = ensureChartHorizontalScroll(chInt.canvas, labels.length, { stickyLegend: true });
+        if (sInt) monitorPopulateStickyLegend(chInt, sInt);
       }
 
       var elPayTopupCombined = document.getElementById('chartPaymentTopupCombined');
@@ -452,7 +517,7 @@
                   return d.nPayment;
                 }),
                 backgroundColor: pal.payBar,
-                borderColor: pal.payLine,
+                borderColor: pal.payBarBorder,
                 borderWidth: 1,
                 order: 1,
               },
@@ -464,7 +529,7 @@
                   return d.nTopUp;
                 }),
                 backgroundColor: pal.topupBar,
-                borderColor: pal.topupLine,
+                borderColor: pal.topupBarBorder,
                 borderWidth: 1,
                 order: 2,
               },
@@ -513,14 +578,7 @@
               },
             },
             plugins: {
-              legend: {
-                position: 'top',
-                labels: {
-                  usePointStyle: true,
-                  padding: 14,
-                  boxWidth: 10,
-                },
-              },
+              legend: { display: false },
               tooltip: {
                 callbacks: {
                   label: function (ctx) {
@@ -558,7 +616,8 @@
             },
           },
         });
-        ensureChartHorizontalScroll(chPayTop.canvas, labels.length, {});
+        var sPayTop = ensureChartHorizontalScroll(chPayTop.canvas, labels.length, { stickyLegend: true });
+        if (sPayTop) monitorPopulateStickyLegend(chPayTop, sPayTop);
       }
 
       // Petite courbe net (Top-up - Payment), cumulée dans le temps, dans la carte du haut.
@@ -710,7 +769,7 @@
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
             plugins: {
-              legend: { position: 'top' },
+              legend: { display: false },
               tooltip: {
                 callbacks: {
                   afterLabel: function (ctx) {
@@ -740,11 +799,20 @@
             },
           },
         });
-        ensureChartHorizontalScroll(chAvgPay.canvas, labels.length, {});
+        var sAvg = ensureChartHorizontalScroll(chAvgPay.canvas, labels.length, { stickyLegend: true });
+        if (sAvg) monitorPopulateStickyLegend(chAvgPay, sAvg);
       }
 
       var elFluxNet = document.getElementById('chartFluxNetDaily');
       if (elFluxNet && vaultDeltaDaily && vaultDeltaDaily.length) {
+        var fluxBg = vaultDeltaDaily.map(function (d) {
+          var v = d.vaultDeltaEur;
+          return v < 0 ? pal.fluxNegFill : pal.c2Fill;
+        });
+        var fluxBd = vaultDeltaDaily.map(function (d) {
+          var v = d.vaultDeltaEur;
+          return v < 0 ? pal.fluxNegStroke : pal.c2Stroke;
+        });
         var chFluxNet = monitorNewChart(elFluxNet, {
           type: 'bar',
           data: {
@@ -757,8 +825,8 @@
                 data: vaultDeltaDaily.map(function (d) {
                   return d.vaultDeltaEur;
                 }),
-                backgroundColor: pal.c2Fill,
-                borderColor: pal.c2Stroke,
+                backgroundColor: fluxBg,
+                borderColor: fluxBd,
                 borderWidth: 1,
               },
             ],
@@ -821,6 +889,7 @@
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
+              legend: { display: false },
               tooltip: {
                 callbacks: {
                   label: function (ctx) {
@@ -838,7 +907,8 @@
             },
           },
         });
-        ensureChartHorizontalScroll(chPayCnt.canvas, labels.length, {});
+        var sCnt = ensureChartHorizontalScroll(chPayCnt.canvas, labels.length, { stickyLegend: true });
+        if (sCnt) monitorPopulateStickyLegend(chPayCnt, sCnt);
       }
     }
 
@@ -983,14 +1053,7 @@
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
             plugins: {
-              legend: {
-                position: 'top',
-                labels: {
-                  usePointStyle: true,
-                  padding: 12,
-                  boxWidth: 8,
-                },
-              },
+              legend: { display: false },
               tooltip: {
                 callbacks: {
                   afterBody: function (items) {
@@ -1019,7 +1082,12 @@
             },
           },
         });
-        ensureChartHorizontalScroll(chWeekly.canvas, wlabels.length, { pxPerLabel: 40, maxWidth: 8000 });
+        var sWeek = ensureChartHorizontalScroll(chWeekly.canvas, wlabels.length, {
+          pxPerLabel: 40,
+          maxWidth: 8000,
+          stickyLegend: true,
+        });
+        if (sWeek) monitorPopulateStickyLegend(chWeekly, sWeek);
       }
     }
   };

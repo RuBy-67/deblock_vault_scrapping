@@ -117,7 +117,7 @@ if ($amountSearchActive) : ?>
       <h3 class="chart-title">payment / top_up : volume + nombre (≈ € / jour + tx / jour)</h3>
       <p class="muted chart-caption">
         <strong>Deux échelles</strong> : axe de gauche = volumes en euros (courbes). Axe de droite = nombre de lignes classées par jour (barres).
-        <strong>Payment</strong> = trait plein + barres foncées ; <strong>top up</strong> = trait <em>pointillé</em> + barres plus claires. Survolez un jour pour le détail.
+        <strong>Payment</strong> = trait plein + barres «&nbsp;#&nbsp;» ; <strong>top up</strong> = trait <em>pointillé</em> + barres «&nbsp;#&nbsp;». Quatre couleurs distinctes (légende à gauche si le graphique défile). Survolez un jour pour le détail.
       </p>
       <div class="chart-canvas-wrap chart-canvas-wrap--short">
         <canvas id="chartPaymentTopupCombined" aria-label="payment et top_up : volume (≈ €) et nombre de lignes par jour"></canvas>
