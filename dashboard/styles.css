@@ -75,6 +75,47 @@ body {
   background: #1d4ed8;
 }
 
+.view-switch {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: nowrap;
+  margin: 0 0 1rem;
+  padding: 0.3rem;
+  border: 1px solid #dbe2ea;
+  background: #f8fafc;
+  border-radius: 12px;
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.view-switch__link {
+  display: inline-block;
+  padding: 0.42rem 0.9rem;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  text-decoration: none;
+  color: #334155;
+  background: transparent;
+  font-size: 0.87rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.view-switch__link.is-active {
+  border-color: #bfdbfe;
+  color: #1e40af;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  font-weight: 700;
+}
+
+.view-switch__link:hover {
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.78);
+  font-weight: 600;
+}
+
 .filters__cp {
   flex: 1 1 280px;
   min-width: min(100%, 280px);
@@ -433,6 +474,34 @@ code {
   border-radius: 50%;
   animation: monitor-spin 0.7s linear infinite;
   flex-shrink: 0;
+}
+
+.graph-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 0.9rem;
+  align-items: start;
+}
+
+.graph-canvas {
+  width: 100%;
+  height: min(70vh, 720px);
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.graph-side {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.8rem 0.9rem;
+}
+
+.graph-side h3 {
+  margin: 0 0 0.45rem;
+  font-size: 1rem;
 }
 
 @keyframes monitor-spin {

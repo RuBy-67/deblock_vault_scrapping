@@ -15,9 +15,11 @@ declare(strict_types=1);
 /** @var int $nPaymentClass */
 /** @var int $nTopUpClass */
 /** @var string $vaultApproxBizRaw */
+/** @var string $netChainRaw */
+/** @var string $reconciliationGapRaw */
 /** @var array<string, mixed> $feeRow */
 /** @var array<string, mixed> $gasRow */
-/** @var array<string, mixed> $mintBurn */
+/** @var string $counterparty */
 ?>
 <section class="cards cards--top" id="monitor-cards-mount">
   <div class="card">
@@ -26,23 +28,15 @@ declare(strict_types=1);
       <div>
         <dt>Reçu IN</dt>
         <dd><strong><?= htmlspecialchars(fmt_eur($inTotalRaw)) ?></strong></dd>
-        <?php if ($fluxCardShowOnchainSplit) : ?>
-        <dd class="metric-note">dont <strong><?= htmlspecialchars(fmt_eur($inMintRaw)) ?></strong> mint (<code>0x0</code>) et <strong><?= htmlspecialchars(fmt_eur($inUserRaw)) ?></strong> depuis d’autres adresses.</dd>
-        <?php else : ?>
-        <dd class="metric-note">Filtré Wallet (mint <code>0x0</code> non mélangé ici).</dd>
-        <?php endif; ?>
+        <dd class="metric-note">Transferts entrants hors mint/burn <code>0x0</code>.</dd>
       </div>
       <div>
         <dt>Envoyé OUT</dt>
         <dd><strong><?= htmlspecialchars(fmt_eur($outTotalRaw)) ?></strong></dd>
-        <?php if ($fluxCardShowOnchainSplit) : ?>
-        <dd class="metric-note">dont <strong><?= htmlspecialchars(fmt_eur($outBurnRaw)) ?></strong> burn (<code>0x0</code>) et <strong><?= htmlspecialchars(fmt_eur($outUserRaw)) ?></strong> vers d’autres adresses.</dd>
-        <?php else : ?>
-        <dd class="metric-note">Filtré contrepartie.</dd>
-        <?php endif; ?>
+        <dd class="metric-note">Transferts sortants hors mint/burn <code>0x0</code>.</dd>
       </div>
     </dl>
-    <p class="muted metric-foot"><?= htmlspecialchars(fmt_int_fr($nTxAllRaw)) ?> lignes Transfer sur la période<?= $fluxCardShowOnchainSplit ? ' (tout compris)' : '' ?></p>
+    <p class="muted metric-foot"><?= htmlspecialchars(fmt_int_fr($nTxAllRaw)) ?> lignes Transfer sur la période</p>
   </div>
   <div class="card">
     <h3>À suivre côté « user » (v1)</h3>
@@ -65,12 +59,11 @@ declare(strict_types=1);
     <p class="metric-one-line" style="margin-top:0.25rem">
       <strong style="font-size:1.15rem"><?= htmlspecialchars(fmt_eur_signed_raw($vaultApproxBizRaw)) ?></strong>
     </p>
+    <?php if (($counterparty ?? '') === '') : ?>
+    <p class="metric-note">Valeur globale historique (hors 0x0), indépendante du filtre de dates pour conserver la vue long terme.</p>
+    <?php endif; ?>
     <div class="vault-mini-chart" aria-label="Somme cumulée Top-up moins Payment (v1) par jour">
       <canvas id="chartVaultDaily" aria-label="Evolution du montant du vault (v1) par jour"></canvas>
-    </div>
-    <h4 style="margin:0.65rem 0 0.35rem;font-size:0.95rem;font-weight:700;color:#1a1a1a">Flux net</h4>
-    <div class="vault-mini-chart vault-mini-chart--delta" aria-label="Ecart journalier Top-up moins Payment (v1) par jour">
-      <canvas id="chartVaultDeltaDaily" aria-label="Ecart journalier Top-up moins Payment (v1) par jour"></canvas>
     </div>
   </div>
   <div class="card">
@@ -81,15 +74,5 @@ declare(strict_types=1);
     <div class="vault-mini-chart vault-mini-chart--delta" aria-label="Gas (ETH) cumulé (progression) par jour">
       <canvas id="chartGasDaily" aria-label="Gas (ETH) cumulé (progression) par jour"></canvas>
     </div>
-  </div>
-  <div class="card">
-    <h3>Mint / burn <code>0x0</code></h3>
-    <p class="metric-one-line"><span class="metric-inline-label">Mint (vers le noeud)</span><br><strong><?= htmlspecialchars(fmt_eur((string) ($mintBurn['sum_in_raw'] ?? '0'))) ?></strong></p>
-    <h4 style="margin:0.65rem 0 0.35rem;font-size:0.95rem;font-weight:700;color:#1a1a1a">Mint (vers le noeud) par jour</h4>
-    <div class="vault-mini-chart vault-mini-chart--delta" aria-label="Montant minté vers le noeud par jour (v1)">
-      <canvas id="chartMintDaily" aria-label="Montant minté vers le noeud par jour (v1)"></canvas>
-    </div>
-    <p class="metric-one-line"><span class="metric-inline-label">Burn (depuis le noeud)</span><br><strong><?= htmlspecialchars(fmt_eur((string) ($mintBurn['sum_out_raw'] ?? '0'))) ?></strong></p>
-    <p class="muted metric-foot"><?= htmlspecialchars(fmt_int_fr((int) ($mintBurn['n_tx'] ?? 0))) ?> tx · dates du formulaire uniquement</p>
   </div>
 </section>

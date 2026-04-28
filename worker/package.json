@@ -5,7 +5,8 @@
   "scripts": {
     "sync": "node sync.mjs",
     "classify": "node classify.mjs",
-    "pipeline": "node sync.mjs && node classify.mjs"
+    "pipeline": "node sync.mjs && node classify.mjs",
+    "daily-metrics": "node build_daily_metrics.mjs"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

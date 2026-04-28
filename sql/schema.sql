@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS raw_transfers (
   PRIMARY KEY (id),
   UNIQUE KEY uq_tx_log (tx_hash, log_index),
   KEY idx_rt_block_time (block_time),
+  KEY idx_rt_tx_hash (tx_hash),
   KEY idx_rt_from (from_addr),
   KEY idx_rt_to (to_addr),
   KEY idx_rt_direction_time (direction, block_time)
@@ -74,6 +75,7 @@ CREATE TABLE IF NOT EXISTS classified_events (
   UNIQUE KEY uq_class_raw (raw_transfer_id),
   KEY idx_class_cp_time (counterparty),
   KEY idx_class_type (event_type),
+  KEY idx_class_raw_cp (raw_transfer_id, counterparty),
   CONSTRAINT fk_class_raw FOREIGN KEY (raw_transfer_id) REFERENCES raw_transfers (id) ON DELETE CASCADE,
   CONSTRAINT fk_class_paired FOREIGN KEY (paired_transfer_id) REFERENCES raw_transfers (id) ON DELETE SET NULL
 ) ENGINE=InnoDB;

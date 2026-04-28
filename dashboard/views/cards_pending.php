@@ -20,8 +20,4 @@ declare(strict_types=1);
     <h3>Coûts période</h3>
     <p class="metric-pending muted">Calcul en cours…</p>
   </div>
-  <div class="card">
-    <h3>Mint / burn <code>0x0</code></h3>
-    <p class="metric-pending muted">Calcul en cours…</p>
-  </div>
 </section>

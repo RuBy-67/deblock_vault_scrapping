@@ -8,6 +8,7 @@ declare(strict_types=1);
 /** @var string $counterparty */
 /** @var list<array<string, mixed>> $rows */
 /** @var list<array<string, mixed>> $topCounterparties */
+/** @var list<array<string, mixed>> $topWalletsByToken */
 /** @var list<array<string, mixed>> $byType */
 /** @var list<array{day: string, n: int}> $chartDaily */
 /** @var bool $hasWeeklyPaymentChart */
@@ -19,6 +20,13 @@ declare(strict_types=1);
 ?>
 <?php
 $amountSearchActive = $counterparty === '' && (($vaultTargetEur ?? '') !== '');
+$interestTotalRaw = '0';
+foreach ($byType as $rowType) {
+    if ((string) ($rowType['event_type'] ?? '') === 'interest') {
+        $interestTotalRaw = normalize_amount_raw($rowType['sum_raw'] ?? '0');
+        break;
+    }
+}
 if ($amountSearchActive) : ?>
   <details class="panel panel-details" open>
     <summary class="panel-details__summary">Wallets proches d’un montant cible (Vault v1)</summary>
@@ -96,7 +104,10 @@ if ($amountSearchActive) : ?>
         <canvas id="chartNodeVolumeJour" aria-label="Volume total jeton traité par le noeud par jour"></canvas>
       </div>
       <h3 class="chart-title">Intérêt « versé » par jour (classification v1)</h3>
-      <p class="muted chart-caption">Somme des montants classés <code>interest</code> par jour, <strong>une jambe par paire</strong> (même règle que le tableau « Par type »). Hors mint/burn <code>0x0</code>. Heuristique v1, pas un libellé on-chain.</p>
+      <p class="muted chart-caption">
+        Somme des montants classés <code>interest</code> par jour, <strong>une jambe par paire</strong> (même règle que le tableau « Par type »). Hors mint/burn <code>0x0</code>. Heuristique v1, pas un libellé on-chain.
+        <br>Total cumulé sur la plage affichée (depuis le J1 de la plage) : <strong><?= htmlspecialchars(fmt_eur($interestTotalRaw)) ?></strong>.
+      </p>
       <div class="chart-canvas-wrap">
         <canvas id="chartInterestJour" aria-label="Volume interest classé par jour"></canvas>
       </div>
@@ -112,6 +123,11 @@ if ($amountSearchActive) : ?>
       <div class="chart-canvas-wrap chart-canvas-wrap--short">
         <canvas id="chartPaymentAvgDaily" aria-label="Ticket moyen payment par jour"></canvas>
       </div>
+      <h3 class="chart-title">Flux net journalier (Top-up − Payment)</h3>
+      <p class="muted chart-caption">Delta quotidien en v1. Positif = sorties noeud (top_up) supérieures aux entrées noeud (payment).</p>
+      <div class="chart-canvas-wrap chart-canvas-wrap--short">
+        <canvas id="chartFluxNetDaily" aria-label="Flux net journalier top_up moins payment"></canvas>
+      </div>
       <!-- Graphiques payment/top_up combinés (volume + nombre) au-dessus -->
     <?php endif; ?>
 
@@ -121,12 +137,6 @@ if ($amountSearchActive) : ?>
       <p class="muted" style="margin-bottom:0.75rem;max-width:52rem">
         <strong>Moyenne</strong> sur semaines où il y a eu au moins un payment : <strong><?= htmlspecialchars(fmt_eur($avgPayActiveWeekRaw)) ?></strong> / sem.
         <strong>Étalée sur la plage filtrée</strong> (≈ <?= htmlspecialchars(number_format($weeksInFilterSpan, 1, ',', "\u{202F}")) ?> sem.) : <strong><?= htmlspecialchars(number_format($avgPayCalWeekEur, 2, ',', "\u{202F}")) ?>&nbsp;€</strong> / sem.
-        <?php if ($nDistinctPayersPayment > 0) : ?>
-          <br><strong>Moyenne par compte distinct</strong> (toute la période) : <strong><?= htmlspecialchars(fmt_eur($avgPayPerDistinctAccountRaw)) ?></strong>
-          sur <strong><?= htmlspecialchars(fmt_int_fr($nDistinctPayersPayment)) ?></strong> adresses ayant au moins un <code>payment</code>
-          (= total ÷ comptes ; pas la médiane ; une même adresse sur plusieurs semaines est comptée une fois sur la période).
-          <br><strong>Moyenne des moyennes hebdo</strong> (pour chaque semaine : volume ÷ comptes actifs cette semaine, puis moyenne arithmétique des semaines) : <strong><?= htmlspecialchars(number_format($avgOfWeeklyAvgPerAccountEur, 2, ',', "\u{202F}")) ?>&nbsp;€</strong>.
-        <?php endif; ?>
       </p>
       <div class="chart-canvas-wrap">
         <canvas id="chartPaymentWeekly" aria-label="Volume payment agrégé par semaine"></canvas>
@@ -169,9 +179,9 @@ if ($amountSearchActive) : ?>
         <div class="insight-detail"><?= htmlspecialchars(fmt_int_fr($totalPaymentTxWeek)) ?> tx · ticket moyen (par tx) <?= htmlspecialchars(fmt_eur($avgTicketPaymentRaw)) ?></div>
       </div>
       <div class="insight-card">
-        <div class="insight-label">Moyenne par compte <strong>toute la période</strong> (payment)</div>
-        <div class="insight-value"><?= $nDistinctPayersPayment > 0 ? htmlspecialchars(fmt_eur($avgPayPerDistinctAccountRaw)) : '—' ?></div>
-        <div class="insight-detail"><?= $nDistinctPayersPayment > 0 ? htmlspecialchars(fmt_int_fr($nDistinctPayersPayment)) . ' comptes distincts (contrepartie) · <strong>pas</strong> une moyenne par semaine : c’est total « payment » sur la plage ÷ nb de comptes (chaque adresse comptée 1×). Sur le graphique hebdo : <strong>indigo</strong> = moyenne <strong>par semaine</strong> ; <strong>ligne pointillée</strong> = cette valeur (réf. sur toute la période).' : 'Aucun compte' ?></div>
+        <div class="insight-label">Dépense moyenne par compte (<strong>mois courant</strong>)</div>
+        <div class="insight-value"><?= $nDistinctPayersPaymentMonth > 0 ? htmlspecialchars(fmt_eur($avgPayPerDistinctAccountMonthRaw)) : '—' ?></div>
+        <div class="insight-detail"><?= $nDistinctPayersPaymentMonth > 0 ? htmlspecialchars(fmt_int_fr($nDistinctPayersPaymentMonth)) . ' comptes distincts sur le mois courant (total payment du mois ÷ comptes).' : 'Aucun compte actif ce mois' ?></div>
       </div>
       <div class="insight-card">
         <div class="insight-label">Semaines « actives » (≥ 1 payment)</div>
@@ -194,161 +204,3 @@ if ($amountSearchActive) : ?>
       </div>
     </div>
   </section>
-
-  <?php if ($counterparty === '') : ?>
-  <?php if (($vaultTargetEur ?? '') !== '') : ?>
-  <details class="panel panel-details">
-    <summary class="panel-details__summary">Wallets proches d’un montant cible (Vault v1)</summary>
-    <p class="muted panel-details__intro">
-      Cible : <strong><?= htmlspecialchars(fmt_eur((string) eur_to_raw_wei($vaultTargetEur))) ?></strong> ·
-      tri par écart absolu (Top-up − Payment) sur la période / filtre.
-    </p>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Wallet</th>
-            <th>Vault v1</th>
-            <th>Top-up</th>
-            <th>Payment</th>
-            <th>Ecart (≈ €)</th>
-            <th># payment</th>
-            <th># top_up</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php foreach ($vaultMatches as $tr) : ?>
-          <?php
-            $cpAdr = (string) ($tr['cp'] ?? '');
-            $vaultRaw = (string) ($tr['vault_approx_raw'] ?? '0');
-            $sumTopRaw = (string) ($tr['sum_topup_raw'] ?? '0');
-            $sumPayRaw = (string) ($tr['sum_payment_raw'] ?? '0');
-            $absDiffRaw = (string) ($tr['abs_diff_raw'] ?? '0');
-          ?>
-          <tr>
-            <td class="mono cp-cell" style="font-size:0.82rem">
-              <a href="<?= htmlspecialchars($cpDashboardHref($cpAdr)) ?>" title="Filtrer le tableau de bord sur ce portefeuille"><?= htmlspecialchars(substr($cpAdr, 0, 12)) ?>…</a>
-              <span class="cp-actions">
-                <button type="button" class="btn-copy btn-copy--sm" data-copy="<?= htmlspecialchars($cpAdr) ?>" data-copy-label="Copier" title="Copier l’adresse complète">Copier</button>
-                <a href="https://etherscan.io/address/<?= htmlspecialchars($cpAdr) ?>" target="_blank" rel="noopener" class="muted" style="font-size:0.75rem">Etherscan</a>
-              </span>
-            </td>
-            <td><?= htmlspecialchars(fmt_eur_signed_raw($vaultRaw)) ?></td>
-            <td><?= htmlspecialchars(fmt_eur($sumTopRaw)) ?></td>
-            <td><?= htmlspecialchars(fmt_eur($sumPayRaw)) ?></td>
-            <td class="muted"><?= htmlspecialchars(fmt_eur($absDiffRaw)) ?></td>
-            <td><?= htmlspecialchars(fmt_int_fr((int) ($tr['n_payment'] ?? 0))) ?></td>
-            <td><?= htmlspecialchars(fmt_int_fr((int) ($tr['n_topup'] ?? 0))) ?></td>
-            <td class="muted" style="font-size:0.8rem"> </td>
-          </tr>
-          <?php endforeach; ?>
-          <?php if (!$vaultMatches) : ?>
-          <tr><td colspan="8" class="muted">Aucun wallet proche sur cette période / filtre.</td></tr>
-          <?php endif; ?>
-        </tbody>
-      </table>
-    </div>
-  </details>
-  <?php endif; ?>
-
-  <details class="panel panel-details">
-    <summary class="panel-details__summary">Adresses les plus actives, exclus mint/burn <code>0x0</code></summary>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Contrepartie</th>
-            <th># IN</th>
-            <th># OUT</th>
-            <th>Total</th>
-            <th>Vol. IN (≈ €)</th>
-            <th>Vol. OUT (≈ €)</th>
-            <th>Premier / dernier</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php foreach ($topCounterparties as $tr) : ?>
-          <?php
-                $cpAdr = (string) $tr['cp'];
-                $ni = (int) $tr['n_in'];
-                $no = (int) $tr['n_out'];
-                $hint = monitor_cp_row_hint($ni, $no);
-              ?>
-          <tr>
-            <td class="mono cp-cell" style="font-size:0.82rem">
-              <a href="<?= htmlspecialchars($cpDashboardHref($cpAdr)) ?>" title="Filtrer le tableau de bord sur ce portefeuille"><?= htmlspecialchars(substr($cpAdr, 0, 12)) ?>…</a>
-              <span class="cp-actions">
-                <button type="button" class="btn-copy btn-copy--sm" data-copy="<?= htmlspecialchars($cpAdr) ?>" data-copy-label="Copier" title="Copier l’adresse complète">Copier</button>
-                <a href="https://etherscan.io/address/<?= htmlspecialchars($cpAdr) ?>" target="_blank" rel="noopener" class="muted" style="font-size:0.75rem">Etherscan</a>
-              </span>
-            </td>
-            <td><?= htmlspecialchars(fmt_int_fr($ni)) ?></td>
-            <td><?= htmlspecialchars(fmt_int_fr($no)) ?></td>
-            <td><?= htmlspecialchars(fmt_int_fr((int) $tr['n_total'])) ?></td>
-            <td><?= htmlspecialchars(fmt_eur((string) ($tr['sum_in_raw'] ?? '0'))) ?></td>
-            <td><?= htmlspecialchars(fmt_eur((string) ($tr['sum_out_raw'] ?? '0'))) ?></td>
-            <td class="muted" style="font-size:0.82rem;white-space:nowrap">
-              <?= htmlspecialchars(substr((string) $tr['first_seen'], 0, 10)) ?>
-              → <?= htmlspecialchars(substr((string) $tr['last_seen'], 0, 10)) ?>
-            </td>
-            <td class="muted" style="font-size:0.8rem"><?= $hint !== '' ? htmlspecialchars($hint) : '—' ?></td>
-          </tr>
-          <?php endforeach; ?>
-          <?php if (!$topCounterparties) : ?>
-          <tr><td colspan="8" class="muted">Aucune donnée sur cette période / filtre.</td></tr>
-          <?php endif; ?>
-        </tbody>
-      </table>
-    </div>
-  </details>
-  <?php endif; ?>
-
-  <details class="panel panel-details">
-    <summary class="panel-details__summary">Derniers transferts (<?= (int) $recentTransfersLimit ?> max)</summary>
-    <p class="muted panel-details__intro">
-      Même périmètre que les totaux : <strong>sans</strong> lignes mint/burn <code>0x0</code>. Colonne <strong>Gas</strong> : coût total en <strong>ETH</strong> ; répété sur chaque ligne partageant le même lien « voir » si une tx contient plusieurs Transfers.
-    </p>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Temps</th>
-            <th>Dir</th>
-            <th>Type</th>
-            <th>Contrepartie</th>
-            <th>Montant (≈ €)</th>
-            <th>Frais Deblock est. (≈ €)</th>
-            <th>Gas (ETH)</th>
-            <th>Tx</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php foreach ($rows as $r) : ?>
-          <?php
-              $rowCp = strtolower(trim((string) ($r['counterparty'] ?? '')));
-              $rowCpOk = $rowCp !== '' && preg_match('/^0x[a-f0-9]{40}$/', $rowCp);
-            ?>
-          <tr>
-            <td><?= htmlspecialchars((string) $r['block_time']) ?></td>
-            <td><?= htmlspecialchars((string) $r['direction']) ?></td>
-            <td><?= htmlspecialchars((string) ($r['event_type'] ?? '')) ?></td>
-            <td class="mono cp-cell" title="<?= htmlspecialchars($rowCp) ?>">
-              <?php if ($rowCpOk) : ?>
-              <a href="<?= htmlspecialchars($cpDashboardHref($rowCp)) ?>" title="Filtrer sur ce portefeuille"><?= htmlspecialchars(substr($rowCp, 0, 10)) ?>…</a>
-              <button type="button" class="btn-copy btn-copy--sm" data-copy="<?= htmlspecialchars($rowCp) ?>" data-copy-label="Copier" title="Copier l’adresse">Copier</button>
-              <?php else : ?>
-              —
-              <?php endif; ?>
-            </td>
-            <td><?= htmlspecialchars(fmt_eur((string) $r['amount_raw'])) ?></td>
-            <td><?= $r['fee_token_raw'] ? htmlspecialchars(fmt_eur((string) $r['fee_token_raw'])) : '—' ?></td>
-            <td><?= htmlspecialchars(fmt_eth($r['cost_eth'] ?? null)) ?></td>
-            <td class="mono"><a href="https://etherscan.io/tx/<?= htmlspecialchars((string) $r['tx_hash']) ?>" target="_blank" rel="noopener">voir</a></td>
-          </tr>
-          <?php endforeach; ?>
-        </tbody>
-      </table>
-    </div>
-  </details>

@@ -151,34 +151,17 @@ function findBestPairIndex(i, rows, used, timeline) {
 
 async function loadTransfers() {
   const pool = getPool();
-  const [rows] = await pool.query(
-    `SELECT id, block_time, from_addr, to_addr, amount_raw, direction
-     FROM raw_transfers
-     ORDER BY block_time ASC, id ASC`
-  );
+  const sql = FULL_REBUILD
+    ? `SELECT id, block_time, from_addr, to_addr, amount_raw, direction
+       FROM raw_transfers
+       ORDER BY block_time ASC, id ASC`
+    : `SELECT rt.id, rt.block_time, rt.from_addr, rt.to_addr, rt.amount_raw, rt.direction
+       FROM raw_transfers rt
+       LEFT JOIN classified_events ce ON ce.raw_transfer_id = rt.id
+       WHERE ce.raw_transfer_id IS NULL
+       ORDER BY rt.block_time ASC, rt.id ASC`;
+  const [rows] = await pool.query(sql);
   return rows;
-}
-
-async function countUnclassified(conn) {
-  const [[row]] = await conn.query(`
-    SELECT COUNT(*) AS c
-    FROM raw_transfers rt
-    LEFT JOIN classified_events ce ON ce.raw_transfer_id = rt.id
-    WHERE ce.raw_transfer_id IS NULL
-  `);
-  return Number(row.c);
-}
-
-async function buildUsedFromExisting(conn, rows) {
-  const [existing] = await conn.query(
-    "SELECT raw_transfer_id FROM classified_events"
-  );
-  const idSet = new Set(existing.map((r) => r.raw_transfer_id));
-  const used = new Set();
-  for (let i = 0; i < rows.length; i++) {
-    if (idSet.has(rows[i].id)) used.add(i);
-  }
-  return used;
 }
 
 async function replaceClassifications(rows) {
@@ -188,7 +171,7 @@ async function replaceClassifications(rows) {
     await conn.beginTransaction();
 
     if (!FULL_REBUILD) {
-      const pending = await countUnclassified(conn);
+      const pending = rows.length;
       if (pending === 0) {
         await conn.rollback();
         console.log(
@@ -207,10 +190,7 @@ async function replaceClassifications(rows) {
       await conn.query("DELETE FROM classified_events");
     }
 
-    let used = new Set();
-    if (!FULL_REBUILD) {
-      used = await buildUsedFromExisting(conn, rows);
-    }
+    const used = new Set();
 
     /** @type {any[][]} */
     const inserts = [];
@@ -300,7 +280,7 @@ async function replaceClassifications(rows) {
 
 try {
   const rows = await loadTransfers();
-  console.log("Classify", rows.length, "transferts en base,", {
+  console.log("Classify", rows.length, FULL_REBUILD ? "transferts en base" : "transferts non classés", {
     fullRebuild: FULL_REBUILD,
     rule: RULE,
   });

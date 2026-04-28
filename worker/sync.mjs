@@ -269,15 +269,18 @@ async function runSyncOnce() {
   await Promise.all(blockNums.map((bn) => getBlockTimestamp(BigInt(bn))));
 
   const txSet = new Set();
+  const txFirstBlock = new Map();
   for (const log of logs) {
     txSet.add(log.transactionHash);
+    if (!txFirstBlock.has(log.transactionHash)) {
+      txFirstBlock.set(log.transactionHash, log.blockNumber);
+    }
     const bts = await getBlockTimestamp(log.blockNumber);
     await insertTransfer(log, bts);
   }
 
   for (const h of txSet) {
-    const first = logs.find((l) => l.transactionHash === h);
-    await ensureTxGas(h, first.blockNumber);
+    await ensureTxGas(h, txFirstBlock.get(h));
   }
 
   await setSyncLast(toBlock, null);

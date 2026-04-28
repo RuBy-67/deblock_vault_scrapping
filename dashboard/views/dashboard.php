@@ -6,10 +6,21 @@ declare(strict_types=1);
 /** @var string $dateFrom */
 /** @var string $dateTo */
 /** @var string $counterparty */
+/** @var string $activePage */
+/** @var string $dashboardUrl */
+/** @var string $walletsUrl */
+/** @var string $flowsUrl */
+/** @var string $costsUrl */
+/** @var string $qualityUrl */
+/** @var string $concentrationUrl */
+/** @var string $deferEndpoint */
+/** @var bool $loadCharts */
+/** @var string $deferredStatusText */
 /** @var callable(string): string $cpDashboardHref */
 /** @var string $dashboardOgBase */
 /** @var string $dashboardOgPage */
 /** @var string $dashboardOgImage */
+$isOverview = ($activePage === 'dashboard');
 $ogTitle = 'Monitoring noeud EURCV - SG -Techblock';
 $ogDescription = 'Tableau de bord : flux on-chain du noeud, volumes, classification v1 (payment / top_up / interest), graphiques et coûts (frais estimés, gas). Filtres par dates et par contrepartie.';
 ?>
@@ -67,23 +78,36 @@ $ogDescription = 'Tableau de bord : flux on-chain du noeud, volumes, classificat
     <button type="submit">Filtrer</button>
   </form>
 
-  <?php require __DIR__ . '/cards_pending.php'; ?>
+  <nav class="view-switch" aria-label="Vues du dashboard">
+    <a class="view-switch__link<?= $activePage === 'dashboard' ? ' is-active' : '' ?>" href="<?= htmlspecialchars($dashboardUrl) ?>">Dashboard</a>
+    <a class="view-switch__link<?= $activePage === 'wallets' ? ' is-active' : '' ?>" href="<?= htmlspecialchars($walletsUrl) ?>">Wallets</a>
+    <a class="view-switch__link<?= $activePage === 'flows' ? ' is-active' : '' ?>" href="<?= htmlspecialchars($flowsUrl) ?>">Flux</a>
+    <a class="view-switch__link<?= $activePage === 'costs' ? ' is-active' : '' ?>" href="<?= htmlspecialchars($costsUrl) ?>">Coûts</a>
+    <a class="view-switch__link<?= $activePage === 'quality' ? ' is-active' : '' ?>" href="<?= htmlspecialchars($qualityUrl) ?>">Qualité</a>
+    <a class="view-switch__link<?= $activePage === 'concentration' ? ' is-active' : '' ?>" href="<?= htmlspecialchars($concentrationUrl) ?>">Concentration</a>
+  </nav>
+
+  <?php if ($isOverview) : ?>
+    <?php require __DIR__ . '/cards_pending.php'; ?>
+  <?php endif; ?>
 
   <div id="monitor-deferred-mount" class="monitor-deferred">
     <p class="muted monitor-deferred__status" id="monitor-deferred-status" aria-live="polite">
       <span class="monitor-deferred__spinner" aria-hidden="true"></span>
-      Chargement des graphiques et des tableaux détaillés…
+      <?= htmlspecialchars($deferredStatusText) ?>
     </p>
   </div>
 
+  <?php if ($loadCharts) : ?>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js" crossorigin="anonymous"></script>
   <script src="charts.js"></script>
+  <?php endif; ?>
   <script>
 (function () {
   var mount = document.getElementById('monitor-deferred-mount');
   if (!mount) return;
   var statusEl = document.getElementById('monitor-deferred-status');
-  var url = 'defer.php' + window.location.search;
+  var url = <?= json_encode($deferEndpoint, JSON_UNESCAPED_SLASHES) ?> + window.location.search;
   fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
     .then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
