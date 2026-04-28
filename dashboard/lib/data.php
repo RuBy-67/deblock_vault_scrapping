@@ -742,7 +742,6 @@ LIMIT 50
         ? max(1.0, $daysFilterSpan / 7.0)
         : (float) max(1, $nWeeksPaymentActive);
     $totalPayFloatInsight = raw_wei_to_float_eur($totalPaymentPeriodRaw);
-    $avgPayActiveWeekEur = $nWeeksPaymentActive > 0 ? $totalPayFloatInsight / $nWeeksPaymentActive : 0.0;
     $avgPayCalWeekEur = $weeksInFilterSpan > 0 ? $totalPayFloatInsight / $weeksInFilterSpan : 0.0;
     $avgTicketPaymentRaw = ($totalPaymentTxWeek > 0 && function_exists('bcdiv'))
         ? bcdiv($totalPaymentPeriodRaw, (string) $totalPaymentTxWeek, 0)
@@ -792,10 +791,6 @@ LIMIT 50
         'vaultDeltaDaily' => $chartVaultDeltaDaily,
         'gasDaily' => $chartGasDaily,
         'weeklyPay' => $chartWeeklyPayment,
-        'weeklyMeta' => [
-            'avgActiveEur' => $avgPayActiveWeekEur,
-            'avgCalWeekEur' => $avgPayCalWeekEur,
-        ],
     ];
 
     $chartPayloadJson = json_encode(
@@ -1537,9 +1532,12 @@ FROM (
         $chartVaultDaily[] = ['day' => $day, 'vaultEur' => $vaultRunningEur];
         $chartGasDaily[] = ['day' => $day, 'gasEth' => $gasRunningEth];
 
-        $ts = strtotime($day . ' 00:00:00');
-        if ($ts !== false) {
-            $weekStart = date('Y-m-d', strtotime('monday this week', $ts));
+        // Même borne de semaine que MySQL : DATE_SUB(DATE(...), INTERVAL WEEKDAY(...) DAY) (lundi = 0).
+        $dayIm = DateTimeImmutable::createFromFormat('Y-m-d', $day);
+        if ($dayIm instanceof DateTimeImmutable) {
+            $phpW = (int) $dayIm->format('w');
+            $mysqlW = ($phpW + 6) % 7;
+            $weekStart = $dayIm->modify("-{$mysqlW} days")->format('Y-m-d');
             if (!isset($weeklyBuckets[$weekStart])) {
                 $weeklyBuckets[$weekStart] = ['sumPayRaw' => '0', 'nPay' => 0];
             }
@@ -1560,6 +1558,34 @@ FROM (
     }
 
     ksort($weeklyBuckets);
+
+    $wRt = $f['w'];
+    $paramsRt = $f['params'];
+    $cpSqlRt = $f['cpSql'];
+    $excludeZeroPeerRt = $f['excludeZeroPeerSql'];
+    $sqlWeeklyPaymentDistinct = "
+SELECT
+  DATE(DATE_SUB(DATE(rt.block_time), INTERVAL WEEKDAY(rt.block_time) DAY)) AS week_start,
+  COUNT(DISTINCT LOWER(ce.counterparty)) AS n_distinct_payers
+FROM raw_transfers rt
+JOIN classified_events ce ON ce.raw_transfer_id = rt.id
+WHERE $wRt
+  $cpSqlRt
+  $excludeZeroPeerRt
+  AND ce.event_type = 'payment'
+GROUP BY week_start
+ORDER BY week_start ASC
+";
+    $stWeeklyDistinct = $pdo->prepare($sqlWeeklyPaymentDistinct);
+    $stWeeklyDistinct->execute($paramsRt);
+    $distinctByWeek = [];
+    foreach ($stWeeklyDistinct->fetchAll() ?: [] as $wr) {
+        $ws = substr((string) ($wr['week_start'] ?? ''), 0, 10);
+        if ($ws !== '') {
+            $distinctByWeek[$ws] = (int) ($wr['n_distinct_payers'] ?? 0);
+        }
+    }
+
     $totalPaymentTxWeek = 0;
     $totalPaymentPeriodRaw = '0';
     $bestWeekStart = null;
@@ -1567,6 +1593,10 @@ FROM (
     foreach ($weeklyBuckets as $weekStart => $w) {
         $sr = normalize_amount_raw($w['sumPayRaw']);
         $np = (int) $w['nPay'];
+        $ndPayers = $distinctByWeek[$weekStart] ?? 0;
+        $avgPerDistinctWeekRaw = ($ndPayers > 0 && function_exists('bcdiv'))
+            ? bcdiv($sr, (string) $ndPayers, 0)
+            : '0';
         $totalPaymentPeriodRaw = raw_add($totalPaymentPeriodRaw, $sr);
         $totalPaymentTxWeek += $np;
         if ($bestWeekStart === null) {
@@ -1583,8 +1613,8 @@ FROM (
             'weekStart' => $weekStart,
             'volumeEur' => raw_wei_to_float_eur($sr),
             'nPay' => $np,
-            'nDistinctPayers' => 0,
-            'avgPerAccountEur' => 0.0,
+            'nDistinctPayers' => $ndPayers,
+            'avgPerAccountEur' => raw_wei_to_float_eur($avgPerDistinctWeekRaw),
         ];
     }
 
@@ -1655,7 +1685,6 @@ WHERE rt.block_time >= ?
         'vaultDeltaDaily' => $chartVaultDeltaDaily,
         'gasDaily' => $chartGasDaily,
         'weeklyPay' => $chartWeeklyPayment,
-        'weeklyMeta' => ['avgActiveEur' => raw_wei_to_float_eur($avgPayActiveWeekRaw), 'avgCalWeekEur' => $avgPayCalWeekEur],
     ];
     $chartPayloadJson = json_encode($chartPayload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS);
 

@@ -138,9 +138,9 @@ if ($amountSearchActive) : ?>
     <h3 class="chart-title" style="margin-top:1.75rem">Paiements (<code>payment</code>)  volume par semaine</h3>
     <p class="muted chart-caption">Volume classé <code>payment</code> (hors mint <code>0x0</code>), semaine type ISO (<strong>lundi → dimanche</strong>). Côté user, envois <strong>vers le noeud</strong>.</p>
     <?php if ($hasWeeklyPaymentChart) : ?>
-      <p class="muted" style="margin-bottom:0.75rem;max-width:52rem">
-        <strong>Moyenne</strong> sur semaines où il y a eu au moins un payment : <strong><?= htmlspecialchars(fmt_eur($avgPayActiveWeekRaw)) ?></strong> / sem.
-        <strong>Étalée sur la plage filtrée</strong> (≈ <?= htmlspecialchars(number_format($weeksInFilterSpan, 1, ',', "\u{202F}")) ?> sem.) : <strong><?= htmlspecialchars(number_format($avgPayCalWeekEur, 2, ',', "\u{202F}")) ?>&nbsp;€</strong> / sem.
+      <p class="muted chart-weekly-averages" style="margin-bottom:0.75rem;max-width:52rem">
+        Moyenne sur semaines où il y a eu au moins un payment : <span class="chart-accent-value"><?= htmlspecialchars(fmt_eur($avgPayActiveWeekRaw)) ?></span> / sem.
+        · Étalée sur la plage filtrée (≈ <?= htmlspecialchars(number_format($weeksInFilterSpan, 1, ',', "\u{202F}")) ?> sem.) : <span class="chart-accent-value"><?= htmlspecialchars(number_format($avgPayCalWeekEur, 2, ',', "\u{202F}")) ?>&nbsp;€</span> / sem.
       </p>
       <div class="chart-canvas-wrap">
         <canvas id="chartPaymentWeekly" aria-label="Volume payment agrégé par semaine"></canvas>

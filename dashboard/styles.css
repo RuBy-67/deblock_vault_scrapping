@@ -40,11 +40,9 @@
   --chart-topup-bar-border: #6b6b6b;
   --chart-flux-negative-fill: rgba(220, 38, 38, 0.52);
   --chart-flux-negative-stroke: #b91c1c;
-  /* Volume payment par semaine (4 séries lisibles en clair) */
+  /* Volume payment par semaine (barres + moy. / compte distinct) */
   --chart-weekly-bar-fill: rgba(30, 64, 110, 0.72);
   --chart-weekly-bar-stroke: #1e3f73;
-  --chart-weekly-line-active: #0f766e;
-  --chart-weekly-line-plage: #c2410c;
   --chart-weekly-line-account: #6d28d9;
   --view-switch-text: #334155;
   --view-switch-active-border: #b5b8bc;
@@ -123,8 +121,6 @@ html[data-theme="dark"] {
   --chart-flux-negative-stroke: #f87171;
   --chart-weekly-bar-fill: rgba(1, 212, 186, 0.42);
   --chart-weekly-bar-stroke: #01d4ba;
-  --chart-weekly-line-active: #5eead4;
-  --chart-weekly-line-plage: #fb923c;
   --chart-weekly-line-account: #c4b5fd;
 }
 
@@ -566,6 +562,11 @@ html[data-theme="dark"] .muted.wallet-team-badge {
   max-width: 52rem;
   font-size: 0.85rem;
   line-height: 1.45;
+}
+
+.chart-accent-value {
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .chart-scroll {

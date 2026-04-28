@@ -65,16 +65,6 @@
       scrollEl.appendChild(inner);
     }
 
-    if (options.stickyLegend) {
-      if (!scrollEl.querySelector('.chart-legend-sticky')) {
-        var aside = document.createElement('aside');
-        aside.className = 'chart-legend-sticky';
-        aside.setAttribute('aria-label', 'Légende du graphique');
-        scrollEl.insertBefore(aside, scrollEl.firstChild);
-      }
-      scrollEl.classList.add('chart-scroll--with-sticky-legend');
-    }
-
     var viewport = scrollEl.clientWidth || document.documentElement.clientWidth || 360;
     var targetW = Math.min(maxW, Math.max(viewport, labelCount * pxPerLabel));
     inner.style.minWidth = targetW + 'px';
@@ -97,8 +87,23 @@
 
   function monitorPopulateStickyLegend(chart, scrollEl) {
     if (!chart || !scrollEl) return;
+    var nSeries = chart.data.datasets.filter(function (ds) {
+      return ds.label != null && String(ds.label) !== '';
+    }).length;
+    if (nSeries <= 1) {
+      var rm = scrollEl.querySelector('.chart-legend-sticky');
+      if (rm) rm.remove();
+      scrollEl.classList.remove('chart-scroll--with-sticky-legend');
+      return;
+    }
     var aside = scrollEl.querySelector('.chart-legend-sticky');
-    if (!aside) return;
+    if (!aside) {
+      aside = document.createElement('aside');
+      aside.className = 'chart-legend-sticky';
+      aside.setAttribute('aria-label', 'Légende du graphique');
+      scrollEl.insertBefore(aside, scrollEl.firstChild);
+    }
+    scrollEl.classList.add('chart-scroll--with-sticky-legend');
     aside.innerHTML = '';
     var rootType = chart.config && chart.config.type ? chart.config.type : '';
     chart.data.datasets.forEach(function (ds) {
@@ -227,8 +232,6 @@
       fluxNegStroke: g('--chart-flux-negative-stroke', '#b91c1c'),
       weeklyBarFill: g('--chart-weekly-bar-fill', 'rgba(30,64,110,0.72)'),
       weeklyBarStroke: g('--chart-weekly-bar-stroke', '#1e3f73'),
-      weeklyLineActive: g('--chart-weekly-line-active', '#0f766e'),
-      weeklyLinePlage: g('--chart-weekly-line-plage', '#c2410c'),
       weeklyLineAccount: g('--chart-weekly-line-account', '#6d28d9'),
     };
   }
@@ -318,7 +321,6 @@
     var nodeVolumeDaily = payload.nodeVolumeDaily || [];
     var paymentAvgDaily = payload.paymentAvgDaily || [];
     var weeklyPay = payload.weeklyPay || [];
-    var weeklyMeta = payload.weeklyMeta || {};
     var vaultDaily = payload.vaultDaily || [];
     var vaultDeltaDaily = payload.vaultDeltaDaily || [];
     var gasDaily = payload.gasDaily || [];
@@ -444,7 +446,7 @@
             },
           },
         });
-        var sNode = ensureChartHorizontalScroll(chNodeVol.canvas, labels.length, { stickyLegend: true });
+        var sNode = ensureChartHorizontalScroll(chNodeVol.canvas, labels.length, {});
         if (sNode) monitorPopulateStickyLegend(chNodeVol, sNode);
       }
 
@@ -498,7 +500,7 @@
             },
           },
         });
-        var sInt = ensureChartHorizontalScroll(chInt.canvas, labels.length, { stickyLegend: true });
+        var sInt = ensureChartHorizontalScroll(chInt.canvas, labels.length, {});
         if (sInt) monitorPopulateStickyLegend(chInt, sInt);
       }
 
@@ -616,7 +618,7 @@
             },
           },
         });
-        var sPayTop = ensureChartHorizontalScroll(chPayTop.canvas, labels.length, { stickyLegend: true });
+        var sPayTop = ensureChartHorizontalScroll(chPayTop.canvas, labels.length, {});
         if (sPayTop) monitorPopulateStickyLegend(chPayTop, sPayTop);
       }
 
@@ -799,7 +801,7 @@
             },
           },
         });
-        var sAvg = ensureChartHorizontalScroll(chAvgPay.canvas, labels.length, { stickyLegend: true });
+        var sAvg = ensureChartHorizontalScroll(chAvgPay.canvas, labels.length, {});
         if (sAvg) monitorPopulateStickyLegend(chAvgPay, sAvg);
       }
 
@@ -907,7 +909,7 @@
             },
           },
         });
-        var sCnt = ensureChartHorizontalScroll(chPayCnt.canvas, labels.length, { stickyLegend: true });
+        var sCnt = ensureChartHorizontalScroll(chPayCnt.canvas, labels.length, {});
         if (sCnt) monitorPopulateStickyLegend(chPayCnt, sCnt);
       }
     }
@@ -987,8 +989,6 @@
       var wdata = weeklyPay.map(function (w) {
         return w.volumeEur;
       });
-      var avgA = weeklyMeta.avgActiveEur;
-      var avgC = weeklyMeta.avgCalWeekEur;
       var elW = document.getElementById('chartPaymentWeekly');
       if (elW) {
         var chWeekly = monitorNewChart(elW, {
@@ -1003,34 +1003,6 @@
                 backgroundColor: pal.weeklyBarFill,
                 borderColor: pal.weeklyBarStroke,
                 borderWidth: 1,
-                order: 3,
-              },
-              {
-                type: 'line',
-                label: 'Moy. semaines avec payment',
-                data: wlabels.map(function () {
-                  return avgA;
-                }),
-                borderColor: pal.weeklyLineActive,
-                backgroundColor: 'transparent',
-                borderWidth: 2,
-                borderDash: [6, 4],
-                pointRadius: 0,
-                tension: 0,
-                order: 1,
-              },
-              {
-                type: 'line',
-                label: 'Moy. / sem. (plage dates)',
-                data: wlabels.map(function () {
-                  return avgC;
-                }),
-                borderColor: pal.weeklyLinePlage,
-                backgroundColor: 'transparent',
-                borderWidth: 2,
-                borderDash: [2, 3],
-                pointRadius: 0,
-                tension: 0,
                 order: 2,
               },
               {
@@ -1044,7 +1016,7 @@
                 borderWidth: 2,
                 pointRadius: 3,
                 tension: 0.15,
-                order: 4,
+                order: 1,
               },
             ],
           },
@@ -1085,7 +1057,6 @@
         var sWeek = ensureChartHorizontalScroll(chWeekly.canvas, wlabels.length, {
           pxPerLabel: 40,
           maxWidth: 8000,
-          stickyLegend: true,
         });
         if (sWeek) monitorPopulateStickyLegend(chWeekly, sWeek);
       }
