@@ -28,6 +28,8 @@ $vaultToleranceEur = isset($_GET['vault_tolerance_eur']) ? trim((string) $_GET['
 $vaultTargetEur = preg_match('/^\d+([.,]\d+)?$/', str_replace(',', '.', $vaultTargetEur)) ? $vaultTargetEur : '';
 $vaultToleranceEur = preg_match('/^\d+([.,]\d+)?$/', str_replace(',', '.', $vaultToleranceEur)) ? $vaultToleranceEur : '';
 
+// Graphiques : compact = JSON séries tronquées (léger) ; full = séries complètes.
+// Au 1er « agrandir » le front appelle chart_payload=full&defer_charts_only=1 (HTML cartes ignoré) — une réponse sert tous les graphiques.
 $chartPayloadMode = isset($_GET['chart_payload']) ? strtolower(trim((string) $_GET['chart_payload'])) : 'compact';
 if (!in_array($chartPayloadMode, ['compact', 'full'], true)) {
     $chartPayloadMode = 'compact';

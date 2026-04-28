@@ -522,45 +522,57 @@
 
       var elAct = document.getElementById('chartActiviteJour');
       if (elAct) {
-        var chAct = monitorNewChart(elAct, {
-          type: 'bar',
-          data: {
-            labels: labels,
-            datasets: [
-              {
-                label: 'Transferts',
-                data: daily.map(function (d) {
-                  return d.n;
-                }),
-                backgroundColor: pal.c1Fill,
-                borderColor: pal.c1Stroke,
-                borderWidth: 1,
-              },
-            ],
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: { display: false },
-              tooltip: {
-                callbacks: {
-                  label: function (ctx) {
-                    return fmtN(ctx.parsed.y) + ' transferts';
+        var wrapAct = elAct.parentElement;
+        function makeActiviteCfg(nLast) {
+          var start = nLast != null ? Math.max(0, labels.length - nLast) : 0;
+          var L = labels.slice(start);
+          var rows = daily.slice(start);
+          return {
+            type: 'bar',
+            data: {
+              labels: L,
+              datasets: [
+                {
+                  label: 'Transferts',
+                  data: rows.map(function (d) {
+                    return d.n;
+                  }),
+                  backgroundColor: pal.c1Fill,
+                  borderColor: pal.c1Stroke,
+                  borderWidth: 1,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    label: function (ctx) {
+                      return fmtN(ctx.parsed.y) + ' transferts';
+                    },
                   },
                 },
               },
-            },
-            scales: {
-              x: { ticks: { maxRotation: 45, minRotation: 0 } },
-              y: {
-                beginAtZero: true,
-                ticks: { callback: function (val) { return fmtN(val); } },
+              scales: {
+                x: { ticks: { maxRotation: 45, minRotation: 0 } },
+                y: {
+                  beginAtZero: true,
+                  ticks: { callback: function (val) { return fmtN(val); } },
+                },
               },
             },
-          },
+          };
+        }
+        var chAct = monitorNewChart(elAct, makeActiviteCfg(MONITOR_PREVIEW_POINTS));
+        ensureChartHorizontalScroll(chAct.canvas, labels.length, {
+          minLabels: MONITOR_SCROLL_SUPPRESS_MIN,
         });
-        ensureChartHorizontalScroll(chAct.canvas, labels.length, {});
+        if (wrapAct) {
+          monitorBindChartExpand(wrapAct, 'Nombre de transferts par jour', makeActiviteCfg);
+        }
       }
 
       var elNodeVol = document.getElementById('chartNodeVolumeJour');
@@ -701,120 +713,135 @@
 
       var elPayTopupCombined = document.getElementById('chartPaymentTopupCombined');
       if (elPayTopupCombined && dailyClass && dailyClass.length) {
-        var chPayTop = monitorNewChart(elPayTopupCombined, {
-          type: 'bar',
-          data: {
-            labels: labels,
-            datasets: [
-              {
-                type: 'bar',
-                yAxisID: 'yCount',
-                label: 'Payment (#)',
-                data: dailyClass.map(function (d) {
-                  return d.nPayment;
-                }),
-                backgroundColor: pal.payBar,
-                borderColor: pal.payBarBorder,
-                borderWidth: 1,
-                order: 1,
-              },
-              {
-                type: 'bar',
-                yAxisID: 'yCount',
-                label: 'Top up (#)',
-                data: dailyClass.map(function (d) {
-                  return d.nTopUp;
-                }),
-                backgroundColor: pal.topupBar,
-                borderColor: pal.topupBarBorder,
-                borderWidth: 1,
-                order: 2,
-              },
-              {
-                type: 'line',
-                yAxisID: 'yVolume',
-                label: 'Payment (≈ €)',
-                data: dailyClass.map(function (d) {
-                  return d.payment;
-                }),
-                borderColor: pal.payLine,
-                backgroundColor: pal.payArea,
-                borderWidth: 2,
-                fill: true,
-                tension: 0.2,
-                pointRadius: 2,
-                order: 3,
-              },
-              {
-                type: 'line',
-                yAxisID: 'yVolume',
-                label: 'Top up (≈ €)',
-                data: dailyClass.map(function (d) {
-                  return d.top_up;
-                }),
-                borderColor: pal.topupLine,
-                backgroundColor: pal.topupArea,
-                borderWidth: 2,
-                borderDash: [6, 4],
-                fill: false,
-                tension: 0.2,
-                pointRadius: 2,
-                order: 4,
-              },
-            ],
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: { mode: 'index', intersect: false },
-            datasets: {
-              bar: {
-                categoryPercentage: 0.72,
-                barPercentage: 0.85,
-                borderRadius: 3,
-              },
+        var wrapPayTop = elPayTopupCombined.parentElement;
+        function makePayTopCombinedCfg(nLast) {
+          var start = nLast != null ? Math.max(0, labels.length - nLast) : 0;
+          var L = labels.slice(start);
+          var dc = dailyClass.slice(start);
+          return {
+            type: 'bar',
+            data: {
+              labels: L,
+              datasets: [
+                {
+                  type: 'bar',
+                  yAxisID: 'yCount',
+                  label: 'Payment (#)',
+                  data: dc.map(function (d) {
+                    return d.nPayment;
+                  }),
+                  backgroundColor: pal.payBar,
+                  borderColor: pal.payBarBorder,
+                  borderWidth: 1,
+                  order: 1,
+                },
+                {
+                  type: 'bar',
+                  yAxisID: 'yCount',
+                  label: 'Top up (#)',
+                  data: dc.map(function (d) {
+                    return d.nTopUp;
+                  }),
+                  backgroundColor: pal.topupBar,
+                  borderColor: pal.topupBarBorder,
+                  borderWidth: 1,
+                  order: 2,
+                },
+                {
+                  type: 'line',
+                  yAxisID: 'yVolume',
+                  label: 'Payment (≈ €)',
+                  data: dc.map(function (d) {
+                    return d.payment;
+                  }),
+                  borderColor: pal.payLine,
+                  backgroundColor: pal.payArea,
+                  borderWidth: 2,
+                  fill: true,
+                  tension: 0.2,
+                  pointRadius: 2,
+                  order: 3,
+                },
+                {
+                  type: 'line',
+                  yAxisID: 'yVolume',
+                  label: 'Top up (≈ €)',
+                  data: dc.map(function (d) {
+                    return d.top_up;
+                  }),
+                  borderColor: pal.topupLine,
+                  backgroundColor: pal.topupArea,
+                  borderWidth: 2,
+                  borderDash: [6, 4],
+                  fill: false,
+                  tension: 0.2,
+                  pointRadius: 2,
+                  order: 4,
+                },
+              ],
             },
-            plugins: {
-              legend: { display: false },
-              tooltip: {
-                callbacks: {
-                  label: function (ctx) {
-                    var v = ctx.parsed.y;
-                    if (v == null) return ctx.dataset.label;
-                    if (ctx.dataset.yAxisID === 'yVolume') {
-                      return ctx.dataset.label + ' : ' + fmtEur(v);
-                    }
-                    return ctx.dataset.label + ' : ' + fmtN(v);
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              interaction: { mode: 'index', intersect: false },
+              datasets: {
+                bar: {
+                  categoryPercentage: 0.72,
+                  barPercentage: 0.85,
+                  borderRadius: 3,
+                },
+              },
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    label: function (ctx) {
+                      var v = ctx.parsed.y;
+                      if (v == null) return ctx.dataset.label;
+                      if (ctx.dataset.yAxisID === 'yVolume') {
+                        return ctx.dataset.label + ' : ' + fmtEur(v);
+                      }
+                      return ctx.dataset.label + ' : ' + fmtN(v);
+                    },
                   },
                 },
               },
-            },
-            scales: {
-              x: { ticks: { maxRotation: 45, minRotation: 0 }, grid: { display: false } },
-              yVolume: {
-                position: 'left',
-                beginAtZero: true,
-                title: {
-                  display: true,
-                  text: 'Volume (≈ € / jour)',
+              scales: {
+                x: { ticks: { maxRotation: 45, minRotation: 0 }, grid: { display: false } },
+                yVolume: {
+                  position: 'left',
+                  beginAtZero: true,
+                  title: {
+                    display: true,
+                    text: 'Volume (≈ € / jour)',
+                  },
+                  ticks: { callback: function (val) { return fmtEurAxis(val); } },
                 },
-                ticks: { callback: function (val) { return fmtEurAxis(val); } },
-              },
-              yCount: {
-                position: 'right',
-                beginAtZero: true,
-                title: {
-                  display: true,
-                  text: 'Nombre de lignes (tx / jour)',
+                yCount: {
+                  position: 'right',
+                  beginAtZero: true,
+                  title: {
+                    display: true,
+                    text: 'Nombre de lignes (tx / jour)',
+                  },
+                  grid: { drawOnChartArea: false },
+                  ticks: { callback: function (val) { return fmtN(val); } },
                 },
-                grid: { drawOnChartArea: false },
-                ticks: { callback: function (val) { return fmtN(val); } },
               },
             },
-          },
+          };
+        }
+        var chPayTop = monitorNewChart(elPayTopupCombined, makePayTopCombinedCfg(MONITOR_PREVIEW_POINTS));
+        ensureChartHorizontalScroll(chPayTop.canvas, labels.length, {
+          minLabels: MONITOR_SCROLL_SUPPRESS_MIN,
         });
-        var sPayTop = ensureChartHorizontalScroll(chPayTop.canvas, labels.length, {});
-        if (sPayTop) monitorPopulateStickyLegend(chPayTop, sPayTop);
+        if (wrapPayTop) {
+          monitorBindChartExpand(
+            wrapPayTop,
+            'payment / top_up : volume + nombre (≈ € / jour + tx / jour)',
+            makePayTopCombinedCfg
+          );
+        }
       }
 
       // Petite courbe net (Top-up - Payment), cumulée dans le temps, dans la carte du haut.
@@ -943,116 +970,146 @@
 
       var elAvgPay = document.getElementById('chartPaymentAvgDaily');
       if (elAvgPay) {
-        var chAvgPay = monitorNewChart(elAvgPay, {
-          type: 'line',
-          data: {
-            labels: labels,
-            datasets: [
-              {
-                label: 'Ticket moyen payment (≈ €)',
-                data: paymentAvgDaily.map(function (d) {
-                  return d.avgTicketEur;
-                }),
-                borderColor: pal.c1Stroke,
-                backgroundColor: pal.c1Area,
-                fill: true,
-                tension: 0.25,
-                pointRadius: 2,
-              },
-            ],
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: { mode: 'index', intersect: false },
-            plugins: {
-              legend: { display: false },
-              tooltip: {
-                callbacks: {
-                  afterLabel: function (ctx) {
-                    var idx = ctx.dataIndex;
-                    if (idx >= 0 && paymentAvgDaily[idx] && paymentAvgDaily[idx].nPayment) {
-                      return paymentAvgDaily[idx].nPayment + ' ligne(s) payment ce jour';
-                    }
-                    if (idx >= 0 && paymentAvgDaily[idx] && !paymentAvgDaily[idx].nPayment) {
-                      return 'aucun payment';
-                    }
-                    return '';
-                  },
-                  label: function (ctx) {
-                    var v = ctx.parsed.y;
-                    if (v == null) return ctx.dataset.label;
-                    return ctx.dataset.label + ' : ' + fmtEur(v);
+        var wrapAvgPay = elAvgPay.parentElement;
+        function makeAvgPayCfg(nLast) {
+          var start = nLast != null ? Math.max(0, labels.length - nLast) : 0;
+          var L = labels.slice(start);
+          var rows = paymentAvgDaily.slice(start);
+          return {
+            type: 'line',
+            data: {
+              labels: L,
+              datasets: [
+                {
+                  label: 'Ticket moyen payment (≈ €)',
+                  data: rows.map(function (d) {
+                    return d.avgTicketEur;
+                  }),
+                  borderColor: pal.c1Stroke,
+                  backgroundColor: pal.c1Area,
+                  fill: true,
+                  tension: 0.25,
+                  pointRadius: 2,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              interaction: { mode: 'index', intersect: false },
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    afterLabel: function (ctx) {
+                      var idx = ctx.dataIndex;
+                      if (idx >= 0 && rows[idx] && rows[idx].nPayment) {
+                        return rows[idx].nPayment + ' ligne(s) payment ce jour';
+                      }
+                      if (idx >= 0 && rows[idx] && !rows[idx].nPayment) {
+                        return 'aucun payment';
+                      }
+                      return '';
+                    },
+                    label: function (ctx) {
+                      var v = ctx.parsed.y;
+                      if (v == null) return ctx.dataset.label;
+                      return ctx.dataset.label + ' : ' + fmtEur(v);
+                    },
                   },
                 },
               },
-            },
-            scales: {
-              x: { ticks: { maxRotation: 45, minRotation: 0 } },
-              y: {
-                beginAtZero: true,
-                ticks: { callback: function (val) { return fmtEurAxis(val); } },
+              scales: {
+                x: { ticks: { maxRotation: 45, minRotation: 0 } },
+                y: {
+                  beginAtZero: true,
+                  ticks: { callback: function (val) { return fmtEurAxis(val); } },
+                },
               },
             },
-          },
+          };
+        }
+        var chAvgPay = monitorNewChart(elAvgPay, makeAvgPayCfg(MONITOR_PREVIEW_POINTS));
+        ensureChartHorizontalScroll(chAvgPay.canvas, labels.length, {
+          minLabels: MONITOR_SCROLL_SUPPRESS_MIN,
         });
-        var sAvg = ensureChartHorizontalScroll(chAvgPay.canvas, labels.length, {});
-        if (sAvg) monitorPopulateStickyLegend(chAvgPay, sAvg);
+        if (wrapAvgPay) {
+          monitorBindChartExpand(
+            wrapAvgPay,
+            'Paiement moyen par jour (ticket payment ≈ €)',
+            makeAvgPayCfg
+          );
+        }
       }
 
       var elFluxNet = document.getElementById('chartFluxNetDaily');
       if (elFluxNet && vaultDeltaDaily && vaultDeltaDaily.length) {
-        var fluxBg = vaultDeltaDaily.map(function (d) {
-          var v = d.vaultDeltaEur;
-          return v < 0 ? pal.fluxNegFill : pal.c2Fill;
-        });
-        var fluxBd = vaultDeltaDaily.map(function (d) {
-          var v = d.vaultDeltaEur;
-          return v < 0 ? pal.fluxNegStroke : pal.c2Stroke;
-        });
-        var chFluxNet = monitorNewChart(elFluxNet, {
-          type: 'bar',
-          data: {
-            labels: vaultDeltaDaily.map(function (d) {
-              return d.day;
-            }),
-            datasets: [
-              {
-                label: 'Top-up − Payment (delta/jour) (≈ €)',
-                data: vaultDeltaDaily.map(function (d) {
-                  return d.vaultDeltaEur;
-                }),
-                backgroundColor: fluxBg,
-                borderColor: fluxBd,
-                borderWidth: 1,
-              },
-            ],
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: { display: false },
-              tooltip: {
-                callbacks: {
-                  label: function (ctx) {
-                    var v = ctx.parsed.y;
-                    if (v == null) return ctx.dataset.label;
-                    return ctx.dataset.label + ' : ' + fmtEur(v);
+        var wrapFlux = elFluxNet.parentElement;
+        function makeFluxNetCfg(nLast) {
+          var start = nLast != null ? Math.max(0, vaultDeltaDaily.length - nLast) : 0;
+          var rows = vaultDeltaDaily.slice(start);
+          var fluxBg = rows.map(function (d) {
+            var v = d.vaultDeltaEur;
+            return v < 0 ? pal.fluxNegFill : pal.c2Fill;
+          });
+          var fluxBd = rows.map(function (d) {
+            var v = d.vaultDeltaEur;
+            return v < 0 ? pal.fluxNegStroke : pal.c2Stroke;
+          });
+          return {
+            type: 'bar',
+            data: {
+              labels: rows.map(function (d) {
+                return d.day;
+              }),
+              datasets: [
+                {
+                  label: 'Top-up − Payment (delta/jour) (≈ €)',
+                  data: rows.map(function (d) {
+                    return d.vaultDeltaEur;
+                  }),
+                  backgroundColor: fluxBg,
+                  borderColor: fluxBd,
+                  borderWidth: 1,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    label: function (ctx) {
+                      var v = ctx.parsed.y;
+                      if (v == null) return ctx.dataset.label;
+                      return ctx.dataset.label + ' : ' + fmtEur(v);
+                    },
                   },
                 },
               },
-            },
-            scales: {
-              x: { ticks: { maxRotation: 45, minRotation: 0 }, grid: { display: false } },
-              y: {
-                beginAtZero: true,
-                ticks: { callback: function (val) { return fmtEurAxis(val); } },
+              scales: {
+                x: { ticks: { maxRotation: 45, minRotation: 0 }, grid: { display: false } },
+                y: {
+                  beginAtZero: true,
+                  ticks: { callback: function (val) { return fmtEurAxis(val); } },
+                },
               },
             },
-          },
+          };
+        }
+        var chFluxNet = monitorNewChart(elFluxNet, makeFluxNetCfg(MONITOR_PREVIEW_POINTS));
+        ensureChartHorizontalScroll(chFluxNet.canvas, vaultDeltaDaily.length, {
+          minLabels: MONITOR_SCROLL_SUPPRESS_MIN,
         });
-        ensureChartHorizontalScroll(chFluxNet.canvas, vaultDeltaDaily.length, {});
+        if (wrapFlux) {
+          monitorBindChartExpand(
+            wrapFlux,
+            'Flux net journalier (Top-up − Payment)',
+            makeFluxNetCfg
+          );
+        }
       }
 
       var elPayTopupCount = document.getElementById('chartPaymentTopupCount');

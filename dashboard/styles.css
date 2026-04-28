@@ -568,6 +568,51 @@ html[data-theme="dark"] .muted.wallet-team-badge {
   line-height: 1.45;
 }
 
+/** Grille responsive : 1 → 2 → 3 colonnes ; le modal reste pleine largeur au clic. */
+.chart-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem 1.25rem;
+  margin-top: 0.35rem;
+  align-items: start;
+}
+
+@media (min-width: 860px) {
+  .chart-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1240px) {
+  .chart-grid:not(.chart-grid--weekly) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.chart-grid__item {
+  min-width: 0;
+}
+
+.chart-grid__item--full {
+  grid-column: 1 / -1;
+}
+
+.chart-grid .chart-grid__item .chart-title:first-of-type {
+  margin-top: 0.15rem;
+}
+
+.chart-grid .chart-caption {
+  max-width: none;
+}
+
+.chart-grid .chart-canvas-wrap--expandable-host {
+  height: min(155px, 24vh);
+}
+
+.chart-grid .chart-subtitle {
+  margin-top: 0;
+}
+
 .chart-accent-value {
   color: var(--accent);
   font-weight: 600;

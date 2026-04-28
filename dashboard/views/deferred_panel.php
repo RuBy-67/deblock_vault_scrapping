@@ -93,64 +93,81 @@ if ($amountSearchActive) : ?>
     <?php if (!$chartDaily) : ?>
       <p class="muted">Pas encore assez de données pour un graphique sur cette période.</p>
     <?php else : ?>
-      <h3 class="chart-title">Nombre de transferts par jour</h3>
-      <p class="muted chart-caption">Toutes les lignes <code>raw_transfers</code> du noeud sur ce token (brut chaîne, mint/burn <code>0x0</code> inclus si présents dans l’import).</p>
-      <div class="chart-canvas-wrap chart-canvas-wrap--short">
-        <canvas id="chartActiviteJour" aria-label="Nombre de transferts par jour"></canvas>
+      <div class="chart-grid" role="presentation">
+        <div class="chart-grid__item">
+          <h3 class="chart-title">Nombre de transferts par jour</h3>
+          <p class="muted chart-caption">Toutes les lignes <code>raw_transfers</code> du noeud sur ce token (brut chaîne, mint/burn <code>0x0</code> inclus si présents dans l’import).</p>
+          <div class="chart-canvas-wrap chart-canvas-wrap--expandable-host">
+            <canvas id="chartActiviteJour" aria-label="Nombre de transferts par jour"></canvas>
+          </div>
+        </div>
+        <div class="chart-grid__item">
+          <h3 class="chart-title">Volume total traité par le noeud (≈ € / jour)</h3>
+          <p class="muted chart-caption">Somme des montants de toutes les lignes <code>raw_transfers</code> ce jour (chaque transfert compté une fois, IN et OUT inclus). Hors mint/burn <code>0x0</code>. Mêmes filtres dates / Wallet que le formulaire.</p>
+          <div class="chart-canvas-wrap chart-canvas-wrap--expandable-host">
+            <canvas id="chartNodeVolumeJour" aria-label="Volume total jeton traité par le noeud par jour"></canvas>
+          </div>
+        </div>
+        <div class="chart-grid__item">
+          <h3 class="chart-title">Intérêt « versé » par jour (classification v1)</h3>
+          <p class="muted chart-caption">
+            Somme des montants classés <code>interest</code> par jour, <strong>une jambe par paire</strong> (même règle que le tableau « Par type »). Hors mint/burn <code>0x0</code>. Heuristique v1, pas un libellé on-chain.
+            <br>Total cumulé sur la plage affichée (depuis le J1 de la plage) : <strong><?= htmlspecialchars(fmt_eur($interestTotalRaw)) ?></strong>.
+          </p>
+          <div class="chart-canvas-wrap chart-canvas-wrap--expandable-host">
+            <canvas id="chartInterestJour" aria-label="Volume interest classé par jour"></canvas>
+          </div>
+        </div>
+        <div class="chart-grid__item">
+          <p class="muted chart-caption" style="margin-top:0"><strong>Paiements / top up</strong> : seules les lignes <code>payment</code> et <code>top_up</code> (v1).</p>
+          <h3 class="chart-title">payment / top_up : volume + nombre (≈ € / jour + tx / jour)</h3>
+          <p class="muted chart-caption">
+            <strong>Deux échelles</strong> : axe de gauche = volumes en euros (courbes). Axe de droite = nombre de lignes classées par jour (barres).
+            <strong>Payment</strong> = trait plein + barres «&nbsp;#&nbsp;» ; <strong>top up</strong> = trait <em>pointillé</em> + barres «&nbsp;#&nbsp;». Quatre couleurs distinctes (légende à gauche si le graphique défile). Survolez un jour pour le détail.
+          </p>
+          <div class="chart-canvas-wrap chart-canvas-wrap--expandable-host">
+            <canvas id="chartPaymentTopupCombined" aria-label="payment et top_up : volume (≈ €) et nombre de lignes par jour"></canvas>
+          </div>
+        </div>
+        <div class="chart-grid__item">
+          <h3 class="chart-title">Paiement moyen par jour (<code>payment</code> ticket moyen ≈ €)</h3>
+          <p class="muted chart-caption">Pour chaque jour : somme des montants <code>payment</code> ÷ nombre de lignes <code>payment</code> ce jour-là. Jours sans payment : 0.</p>
+          <div class="chart-canvas-wrap chart-canvas-wrap--expandable-host">
+            <canvas id="chartPaymentAvgDaily" aria-label="Ticket moyen payment par jour"></canvas>
+          </div>
+        </div>
+        <div class="chart-grid__item">
+          <h3 class="chart-title">Flux net journalier (Top-up − Payment)</h3>
+          <p class="muted chart-caption">Delta quotidien en v1. Positif = sorties noeud (top_up) supérieures aux entrées noeud (payment).</p>
+          <div class="chart-canvas-wrap chart-canvas-wrap--expandable-host">
+            <canvas id="chartFluxNetDaily" aria-label="Flux net journalier top_up moins payment"></canvas>
+          </div>
+        </div>
       </div>
-      <h3 class="chart-title">Volume total traité par le noeud (≈ € / jour)</h3>
-      <p class="muted chart-caption">Somme des montants de toutes les lignes <code>raw_transfers</code> ce jour (chaque transfert compté une fois, IN et OUT inclus). Hors mint/burn <code>0x0</code>. Mêmes filtres dates / Wallet que le formulaire.</p>
-      <div class="chart-canvas-wrap chart-canvas-wrap--expandable-host">
-        <canvas id="chartNodeVolumeJour" aria-label="Volume total jeton traité par le noeud par jour"></canvas>
-      </div>
-      <h3 class="chart-title">Intérêt « versé » par jour (classification v1)</h3>
-      <p class="muted chart-caption">
-        Somme des montants classés <code>interest</code> par jour, <strong>une jambe par paire</strong> (même règle que le tableau « Par type »). Hors mint/burn <code>0x0</code>. Heuristique v1, pas un libellé on-chain.
-        <br>Total cumulé sur la plage affichée (depuis le J1 de la plage) : <strong><?= htmlspecialchars(fmt_eur($interestTotalRaw)) ?></strong>.
-      </p>
-      <div class="chart-canvas-wrap chart-canvas-wrap--expandable-host">
-        <canvas id="chartInterestJour" aria-label="Volume interest classé par jour"></canvas>
-      </div>
-      <p class="muted" style="margin-top:1rem; max-width:52rem">
-        <strong>Paiements / top up</strong> : seules les lignes <code>payment</code> et <code>top_up</code> (v1).
-      </p>
-      <h3 class="chart-title">payment / top_up : volume + nombre (≈ € / jour + tx / jour)</h3>
-      <p class="muted chart-caption">
-        <strong>Deux échelles</strong> : axe de gauche = volumes en euros (courbes). Axe de droite = nombre de lignes classées par jour (barres).
-        <strong>Payment</strong> = trait plein + barres «&nbsp;#&nbsp;» ; <strong>top up</strong> = trait <em>pointillé</em> + barres «&nbsp;#&nbsp;». Quatre couleurs distinctes (légende à gauche si le graphique défile). Survolez un jour pour le détail.
-      </p>
-      <div class="chart-canvas-wrap chart-canvas-wrap--short">
-        <canvas id="chartPaymentTopupCombined" aria-label="payment et top_up : volume (≈ €) et nombre de lignes par jour"></canvas>
-      </div>
-      <h3 class="chart-title">Paiement moyen par jour (<code>payment</code> ticket moyen ≈ €)</h3>
-      <p class="muted chart-caption">Pour chaque jour : somme des montants <code>payment</code> ÷ nombre de lignes <code>payment</code> ce jour-là. Jours sans payment : 0.</p>
-      <div class="chart-canvas-wrap chart-canvas-wrap--short">
-        <canvas id="chartPaymentAvgDaily" aria-label="Ticket moyen payment par jour"></canvas>
-      </div>
-      <h3 class="chart-title">Flux net journalier (Top-up − Payment)</h3>
-      <p class="muted chart-caption">Delta quotidien en v1. Positif = sorties noeud (top_up) supérieures aux entrées noeud (payment).</p>
-      <div class="chart-canvas-wrap chart-canvas-wrap--short">
-        <canvas id="chartFluxNetDaily" aria-label="Flux net journalier top_up moins payment"></canvas>
-      </div>
-      <!-- Graphiques payment/top_up combinés (volume + nombre) au-dessus -->
     <?php endif; ?>
 
     <h3 class="chart-title" style="margin-top:1.75rem">Paiements (<code>payment</code>) par semaine</h3>
-    <p class="muted chart-caption">Uniquement <code>payment</code> (pas <code>interest</code> ni autres types), hors mint <code>0x0</code>, semaine ISO (<strong>lundi → dimanche</strong>). Aperçu : seulement les derniers points (sans défilement) ; <strong>cliquer sur un graphique</strong> pour la période complète (défilement horizontal si besoin).</p>
+    <p class="muted chart-caption">Uniquement <code>payment</code> (pas <code>interest</code> ni autres types), hors mint <code>0x0</code>, semaine ISO (<strong>lundi → dimanche</strong>). Aperçu compact en grille ; <strong>cliquer sur un graphique</strong> pour la période complète.</p>
     <?php if ($hasWeeklyPaymentChart) : ?>
-      <p class="muted chart-weekly-averages" style="margin-bottom:0.75rem;max-width:52rem">
+      <p class="muted chart-weekly-averages" style="margin-bottom:0.75rem;max-width:none">
         Moyenne sur semaines où il y a eu au moins un payment : <span class="chart-accent-value"><?= htmlspecialchars(fmt_eur($avgPayActiveWeekRaw)) ?></span> / sem.
         · Étalée sur la plage filtrée (≈ <?= htmlspecialchars(number_format($weeksInFilterSpan, 1, ',', "\u{202F}")) ?> sem.) : <span class="chart-accent-value"><?= htmlspecialchars(number_format($avgPayCalWeekEur, 2, ',', "\u{202F}")) ?>&nbsp;€</span> / sem.
       </p>
-      <h4 class="chart-subtitle">Volume + moyenne € / compte distinct</h4>
-      <p class="muted chart-caption" style="margin-top:-0.25rem">Barres = volume total (€, gauche). Courbe violette = volume ÷ comptes distincts (€, droite).</p>
-      <div class="chart-canvas-wrap chart-canvas-wrap--expandable-host">
-        <canvas id="chartPaymentWeekly" aria-label="Volume payment agrégé par semaine"></canvas>
-      </div>
-      <h4 class="chart-subtitle" style="margin-top:1.25rem">Activité <code>payment</code> (comptes &amp; lignes)</h4>
-      <p class="muted chart-caption" style="margin-top:-0.25rem">Courbes sur une seule échelle (nombres entiers). Ambre = comptes distincts ; gris pointillé = nombre de lignes classées <code>payment</code>.</p>
-      <div class="chart-canvas-wrap chart-canvas-wrap--expandable-host">
-        <canvas id="chartPaymentWeeklyActivity" aria-label="Activité payment par semaine"></canvas>
+      <div class="chart-grid chart-grid--weekly" role="presentation">
+        <div class="chart-grid__item">
+          <h4 class="chart-subtitle" style="margin-top:0">Volume + moyenne € / compte distinct</h4>
+          <p class="muted chart-caption" style="margin-top:-0.25rem">Barres = volume total (€, gauche). Courbe violette = volume ÷ comptes distincts (€, droite).</p>
+          <div class="chart-canvas-wrap chart-canvas-wrap--expandable-host">
+            <canvas id="chartPaymentWeekly" aria-label="Volume payment agrégé par semaine"></canvas>
+          </div>
+        </div>
+        <div class="chart-grid__item">
+          <h4 class="chart-subtitle" style="margin-top:0">Activité <code>payment</code> (comptes &amp; lignes)</h4>
+          <p class="muted chart-caption" style="margin-top:-0.25rem">Courbes sur une seule échelle (nombres entiers). Ambre = comptes distincts ; gris pointillé = nombre de lignes classées <code>payment</code>.</p>
+          <div class="chart-canvas-wrap chart-canvas-wrap--expandable-host">
+            <canvas id="chartPaymentWeeklyActivity" aria-label="Activité payment par semaine"></canvas>
+          </div>
+        </div>
       </div>
     <?php else : ?>
       <p class="muted">Aucun <code>payment</code> sur la période / filtre.</p>
