@@ -72,7 +72,7 @@ $concentrationUrl = 'concentration.php?' . http_build_query([
 ]);
 $deferEndpoint = 'defer_wallets.php';
 $loadCharts = false;
-$deferredStatusText = 'Chargement des tableaux wallets…';
+$deferredStatusText = 'Chargement des tableaux wallets… Cela peut prendre un peu de temps vu le volume de données affiché.';
 
 $dashboardOgBase = monitor_dashboard_public_base($cfg);
 $dashboardOgPage = $dashboardOgBase . '/' . basename((string) ($_SERVER['SCRIPT_NAME'] ?? 'wallets.php'));

@@ -59,6 +59,14 @@
     var viewport = scrollEl.clientWidth || document.documentElement.clientWidth || 360;
     var targetW = Math.min(maxW, Math.max(viewport, labelCount * pxPerLabel));
     inner.style.minWidth = targetW + 'px';
+
+    // Par défaut, on positionne le viewport à droite (points les plus récents).
+    // L'utilisateur peut ensuite scroller vers la gauche pour l'historique.
+    if (targetW > viewport) {
+      requestAnimationFrame(function () {
+        scrollEl.scrollLeft = scrollEl.scrollWidth;
+      });
+    }
   }
 
   /**
