@@ -1000,6 +1000,7 @@
                 type: 'bar',
                 label: 'Volume payment (≈ €)',
                 data: wdata,
+                yAxisID: 'y',
                 backgroundColor: pal.weeklyBarFill,
                 borderColor: pal.weeklyBarStroke,
                 borderWidth: 1,
@@ -1007,10 +1008,11 @@
               },
               {
                 type: 'line',
-                label: 'Moy. / compte distinct (cette semaine)',
+                label: 'Moy. € / compte distinct (semaine)',
                 data: weeklyPay.map(function (w) {
                   return w.avgPerAccountEur;
                 }),
+                yAxisID: 'y1',
                 borderColor: pal.weeklyLineAccount,
                 backgroundColor: 'transparent',
                 borderWidth: 2,
@@ -1048,7 +1050,14 @@
             scales: {
               x: { ticks: { maxRotation: 45, minRotation: 0 } },
               y: {
+                position: 'left',
                 beginAtZero: true,
+                ticks: { callback: function (val) { return fmtEurAxis(val); } },
+              },
+              y1: {
+                position: 'right',
+                beginAtZero: true,
+                grid: { drawOnChartArea: false },
                 ticks: { callback: function (val) { return fmtEurAxis(val); } },
               },
             },

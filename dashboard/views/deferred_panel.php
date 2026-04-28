@@ -136,7 +136,7 @@ if ($amountSearchActive) : ?>
     <?php endif; ?>
 
     <h3 class="chart-title" style="margin-top:1.75rem">Paiements (<code>payment</code>)  volume par semaine</h3>
-    <p class="muted chart-caption">Volume classé <code>payment</code> (hors mint <code>0x0</code>), semaine type ISO (<strong>lundi → dimanche</strong>). Côté user, envois <strong>vers le noeud</strong>.</p>
+    <p class="muted chart-caption">Volume classé <code>payment</code> (hors mint <code>0x0</code>), semaine type ISO (<strong>lundi → dimanche</strong>). Côté user, envois <strong>vers le noeud</strong>. <strong>Barres</strong> = volume total de la semaine (axe de gauche). <strong>Courbe</strong> = ce volume ÷ nombre de <strong>comptes distincts</strong> ayant au moins un <code>payment</code> cette semaine (moyenne € par compte, <strong>axe de droite</strong>) — pas le nombre de comptes ; voir tx / comptes au survol.</p>
     <?php if ($hasWeeklyPaymentChart) : ?>
       <p class="muted chart-weekly-averages" style="margin-bottom:0.75rem;max-width:52rem">
         Moyenne sur semaines où il y a eu au moins un payment : <span class="chart-accent-value"><?= htmlspecialchars(fmt_eur($avgPayActiveWeekRaw)) ?></span> / sem.
