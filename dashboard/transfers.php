@@ -36,7 +36,7 @@ $cpDashboardHref = static function (string $cp) use ($dateFrom, $dateTo): string
     return 'wallets.php?' . http_build_query($q);
 };
 
-$activePage = 'wallets';
+$activePage = 'transfers';
 $dashboardUrl = 'index.php?' . http_build_query([
     'date_from' => $dateFrom,
     'date_to' => $dateTo,
@@ -53,6 +53,7 @@ $transfersUrl = 'transfers.php?' . http_build_query([
     'date_from' => $dateFrom,
     'date_to' => $dateTo,
     'counterparty' => $counterparty,
+    'pt' => max(1, (int) ($_GET['pt'] ?? 1)),
 ]);
 $qualityUrl = 'quality.php?' . http_build_query([
     'date_from' => $dateFrom,
@@ -64,12 +65,12 @@ $concentrationUrl = 'concentration.php?' . http_build_query([
     'date_to' => $dateTo,
     'counterparty' => $counterparty,
 ]);
-$deferEndpoint = 'defer_wallets.php';
+$deferEndpoint = 'defer_transfers.php';
 $loadCharts = false;
-$deferredStatusText = 'Chargement des tableaux wallets (sans liste des transferts — voir l’onglet Transferts).';
+$deferredStatusText = 'Chargement des transferts (requête lourde sur la période)…';
 
 $dashboardOgBase = monitor_dashboard_public_base($cfg);
-$dashboardOgPage = $dashboardOgBase . '/' . basename((string) ($_SERVER['SCRIPT_NAME'] ?? 'wallets.php'));
+$dashboardOgPage = $dashboardOgBase . '/' . basename((string) ($_SERVER['SCRIPT_NAME'] ?? 'transfers.php'));
 $dashboardOgImage = $dashboardOgBase . '/lib/deblock.png';
 
 require __DIR__ . '/views/dashboard.php';

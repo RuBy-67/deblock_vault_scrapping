@@ -29,8 +29,7 @@ $cpDashboardHref = static function (string $cp) use ($dateFrom, $dateTo): string
 $activePage = 'quality';
 $dashboardUrl = 'index.php?' . http_build_query(['date_from' => $dateFrom, 'date_to' => $dateTo, 'counterparty' => $counterparty]);
 $walletsUrl = 'wallets.php?' . http_build_query(['date_from' => $dateFrom, 'date_to' => $dateTo, 'counterparty' => $counterparty]);
-$flowsUrl = 'flows.php?' . http_build_query(['date_from' => $dateFrom, 'date_to' => $dateTo, 'counterparty' => $counterparty]);
-$costsUrl = 'costs.php?' . http_build_query(['date_from' => $dateFrom, 'date_to' => $dateTo, 'counterparty' => $counterparty]);
+$transfersUrl = 'transfers.php?' . http_build_query(['date_from' => $dateFrom, 'date_to' => $dateTo, 'counterparty' => $counterparty]);
 $qualityUrl = 'quality.php?' . http_build_query(['date_from' => $dateFrom, 'date_to' => $dateTo, 'counterparty' => $counterparty]);
 $concentrationUrl = 'concentration.php?' . http_build_query(['date_from' => $dateFrom, 'date_to' => $dateTo, 'counterparty' => $counterparty]);
 $deferEndpoint = 'defer_quality.php';

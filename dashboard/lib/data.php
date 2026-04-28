@@ -1102,71 +1102,23 @@ function monitor_wallet_holding_metrics_use(PDO $pdo): bool
 }
 
 /**
- * Page Wallets via wallet_peer_daily / wallet_holding_daily (sans filtre counterparty).
+ * Wallets team (first_seen &lt; cutoff) : tableau d’activité + map pour badges TEAM.
  *
- * @return array<string, mixed>
+ * @return array{activity: list<array<string, mixed>>, map: array<string, bool>}
  */
-function monitor_dashboard_collect_wallets_from_metrics(
-    PDO $pdo,
-    array $f,
-    int $activityPage,
-    int $walletsPage,
-    int $transfersPage,
-    int $perPage
-): array {
-    $w = $f['w'];
-    $params = $f['params'];
-    $cpSql = $f['cpSql'];
-    $cpJoinLeftSql = $f['cpJoinLeftSql'];
-    $excludeZeroPeerSql = $f['excludeZeroPeerSql'];
-    $activityPage = max(1, $activityPage);
-    $walletsPage = max(1, $walletsPage);
-    $transfersPage = max(1, $transfersPage);
-    $perPage = max(10, min(200, $perPage));
-    $offActivity = ($activityPage - 1) * $perPage;
-    $offWallets = ($walletsPage - 1) * $perPage;
-    $offTransfers = ($transfersPage - 1) * $perPage;
+function monitor_dashboard_team_wallet_bundle(PDO $pdo, array $f): array
+{
+    if (($f['counterparty'] ?? '') !== '') {
+        return ['activity' => [], 'map' => []];
+    }
     $teamCutoffDate = '2026-03-11 00:00:00';
     $dayFrom = $f['dateFrom'];
     $dayTo = $f['dateTo'];
-    $rangeParams = [$dayFrom, $dayTo];
-
-    $totalTopCounterparties = 0;
-    $sqlCountTopCp = "
-SELECT COUNT(*) AS n
-FROM (
-  SELECT 1
-  FROM wallet_peer_daily
-  WHERE day >= ? AND day <= ?
-  GROUP BY peer_addr
-) x
-";
-    $stCountTopCp = $pdo->prepare($sqlCountTopCp);
-    $stCountTopCp->execute($rangeParams);
-    $rowCountTopCp = $stCountTopCp->fetch() ?: [];
-    $totalTopCounterparties = (int) ($rowCountTopCp['n'] ?? 0);
-
-    $sqlTopCp = "
-SELECT
-  peer_addr AS cp,
-  SUM(n_in) AS n_in,
-  SUM(n_out) AS n_out,
-  SUM(sum_in_raw) AS sum_in_raw,
-  SUM(sum_out_raw) AS sum_out_raw,
-  MIN(first_ts) AS first_seen,
-  MAX(last_ts) AS last_seen,
-  SUM(n_total) AS n_total
-FROM wallet_peer_daily
-WHERE day >= ? AND day <= ?
-GROUP BY peer_addr
-ORDER BY n_total DESC
-LIMIT {$perPage} OFFSET {$offActivity}
-";
-    $stCp = $pdo->prepare($sqlTopCp);
-    $stCp->execute($rangeParams);
-    $topCounterparties = $stCp->fetchAll();
-
-    $sqlTeamActivity = "
+    $activity = [];
+    $usedMetrics = false;
+    if (monitor_wallet_metrics_should_use($pdo)) {
+        try {
+            $sqlTeamActivity = "
 SELECT
   peer_addr AS cp,
   SUM(n_in) AS n_in,
@@ -1183,58 +1135,98 @@ FROM wallet_peer_daily
 WHERE day >= ? AND day <= ?
 GROUP BY peer_addr
 HAVING MIN(first_ts) < ?
-ORDER BY n_total DESC
+ORDER BY (SUM(sum_topup_raw) - SUM(sum_payment_raw)) DESC
 LIMIT 200
 ";
-    $stTeamActivity = $pdo->prepare($sqlTeamActivity);
-    $stTeamActivity->execute([$dayFrom, $dayTo, $teamCutoffDate]);
-    $teamWalletActivity = $stTeamActivity->fetchAll() ?: [];
-    $teamWalletMap = [];
-    foreach ($teamWalletActivity as $tw) {
+            $stTeamActivity = $pdo->prepare($sqlTeamActivity);
+            $stTeamActivity->execute([$dayFrom, $dayTo, $teamCutoffDate]);
+            $activity = $stTeamActivity->fetchAll() ?: [];
+            $usedMetrics = true;
+        } catch (Throwable $e) {
+            $activity = [];
+        }
+    }
+    if (!$usedMetrics) {
+        $w = $f['w'];
+        $params = $f['params'];
+        $cpSql = $f['cpSql'];
+        $excludeZeroPeerSql = $f['excludeZeroPeerSql'];
+        $sqlTeamActivity = "
+SELECT
+  (CASE WHEN rt.direction = 'in' THEN rt.from_addr ELSE rt.to_addr END) AS cp,
+  SUM(CASE WHEN rt.direction = 'in' THEN 1 ELSE 0 END) AS n_in,
+  SUM(CASE WHEN rt.direction = 'out' THEN 1 ELSE 0 END) AS n_out,
+  SUM(CASE WHEN rt.direction = 'in' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE 0 END) AS sum_in_raw,
+  SUM(CASE WHEN rt.direction = 'out' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE 0 END) AS sum_out_raw,
+  SUM(CASE WHEN ce.event_type = 'payment' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE 0 END) AS sum_payment_raw,
+  SUM(CASE WHEN ce.event_type = 'top_up' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE 0 END) AS sum_topup_raw,
+  (
+    SUM(CASE WHEN ce.event_type = 'top_up' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE 0 END)
+    -
+    SUM(CASE WHEN ce.event_type = 'payment' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE 0 END)
+  ) AS wallet_tokens_raw,
+  MIN(rt.block_time) AS first_seen,
+  MAX(rt.block_time) AS last_seen,
+  COUNT(*) AS n_total
+FROM raw_transfers rt
+LEFT JOIN classified_events ce ON ce.raw_transfer_id = rt.id
+WHERE $w
+  $cpSql
+  $excludeZeroPeerSql
+GROUP BY (CASE WHEN rt.direction = 'in' THEN rt.from_addr ELSE rt.to_addr END)
+HAVING MIN(rt.block_time) < ?
+ORDER BY wallet_tokens_raw DESC
+LIMIT 200
+";
+        $stTeamActivity = $pdo->prepare($sqlTeamActivity);
+        $stTeamActivity->execute(array_merge($params, [$teamCutoffDate]));
+        $activity = $stTeamActivity->fetchAll() ?: [];
+    }
+    $map = [];
+    foreach ($activity as $tw) {
         $cp = strtolower((string) ($tw['cp'] ?? ''));
         if ($cp !== '' && preg_match('/^0x[a-f0-9]{40}$/', $cp)) {
-            $teamWalletMap[$cp] = true;
+            $map[$cp] = true;
         }
     }
 
-    $sqlCountTopWallets = "
-SELECT COUNT(*) AS n
-FROM (
-  SELECT 1
-  FROM wallet_holding_daily
-  WHERE day >= ? AND day <= ?
-  GROUP BY wallet
-) x
-";
-    $stCountTopWallets = $pdo->prepare($sqlCountTopWallets);
-    $stCountTopWallets->execute($rangeParams);
-    $rowCountTopWallets = $stCountTopWallets->fetch() ?: [];
-    $totalTopWallets = (int) ($rowCountTopWallets['n'] ?? 0);
+    return ['activity' => $activity, 'map' => $map];
+}
 
-    $sqlTopWallets = "
-SELECT
-  wallet AS cp,
-  SUM(sum_payment_raw) AS sum_payment_raw,
-  SUM(sum_topup_raw) AS sum_topup_raw,
-  (SUM(sum_topup_raw) - SUM(sum_payment_raw)) AS wallet_tokens_raw,
-  SUM(n_payment) AS n_payment,
-  SUM(n_topup) AS n_topup
-FROM wallet_holding_daily
-WHERE day >= ? AND day <= ?
-GROUP BY wallet
-ORDER BY wallet_tokens_raw DESC
-LIMIT {$perPage} OFFSET {$offWallets}
-";
-    $stTopWallets = $pdo->prepare($sqlTopWallets);
-    $stTopWallets->execute($rangeParams);
-    $topWalletsByToken = $stTopWallets->fetchAll();
+/**
+ * Derniers transferts seuls (page transfers.php).
+ *
+ * @return array<string, mixed>
+ */
+function monitor_dashboard_collect_recent_transfers_only(
+    PDO $pdo,
+    array $f,
+    int $transfersPage = 1,
+    int $perPage = 50
+): array {
+    $w = $f['w'];
+    $params = $f['params'];
+    $cpSql = $f['cpSql'];
+    $excludeZeroPeerSql = $f['excludeZeroPeerSql'];
+    $transfersPage = max(1, $transfersPage);
+    $perPage = max(10, min(200, $perPage));
+    $offTransfers = ($transfersPage - 1) * $perPage;
+
+    $team = monitor_dashboard_team_wallet_bundle($pdo, $f);
+    $teamWalletMap = $team['map'];
 
     $totalTransfers = 0;
-    if (monitor_daily_metrics_available($pdo)) {
-        $stDm = $pdo->prepare('SELECT COALESCE(SUM(n_tx), 0) AS n FROM daily_metrics WHERE day >= ? AND day <= ?');
-        $stDm->execute($rangeParams);
-        $totalTransfers = (int) (($stDm->fetch() ?: [])['n'] ?? 0);
-    } else {
+    if (($f['counterparty'] ?? '') === '' && monitor_daily_metrics_available($pdo)) {
+        try {
+            $rangeParams = [$f['dateFrom'], $f['dateTo']];
+            $stDm = $pdo->prepare('SELECT COALESCE(SUM(n_tx), 0) AS n FROM daily_metrics WHERE day >= ? AND day <= ?');
+            $stDm->execute($rangeParams);
+            $totalTransfers = (int) (($stDm->fetch() ?: [])['n'] ?? 0);
+        } catch (Throwable $e) {
+            $totalTransfers = 0;
+        }
+    }
+    if ($totalTransfers === 0) {
         $sqlCountTransfers = "
 SELECT COUNT(*) AS n
 FROM raw_transfers rt
@@ -1279,16 +1271,118 @@ LIMIT {$lim} OFFSET {$offTransfers}
     $rows = $stList->fetchAll();
 
     return [
+        'rows' => $rows,
+        'teamWalletMap' => $teamWalletMap,
+        'recentTransfersLimit' => $lim,
+        'paging' => [
+            'transfers' => ['page' => $transfersPage, 'perPage' => $perPage, 'total' => $totalTransfers],
+        ],
+    ];
+}
+
+/**
+ * Page Wallets via wallet_peer_daily / wallet_holding_daily (sans filtre counterparty).
+ *
+ * @return array<string, mixed>
+ */
+function monitor_dashboard_collect_wallets_from_metrics(
+    PDO $pdo,
+    array $f,
+    int $activityPage,
+    int $walletsPage,
+    int $perPage
+): array {
+    $activityPage = max(1, $activityPage);
+    $walletsPage = max(1, $walletsPage);
+    $perPage = max(10, min(200, $perPage));
+    $offActivity = ($activityPage - 1) * $perPage;
+    $offWallets = ($walletsPage - 1) * $perPage;
+    $dayFrom = $f['dateFrom'];
+    $dayTo = $f['dateTo'];
+    $rangeParams = [$dayFrom, $dayTo];
+
+    $totalTopCounterparties = 0;
+    $sqlCountTopCp = "
+SELECT COUNT(*) AS n
+FROM (
+  SELECT 1
+  FROM wallet_peer_daily
+  WHERE day >= ? AND day <= ?
+  GROUP BY peer_addr
+) x
+";
+    $stCountTopCp = $pdo->prepare($sqlCountTopCp);
+    $stCountTopCp->execute($rangeParams);
+    $rowCountTopCp = $stCountTopCp->fetch() ?: [];
+    $totalTopCounterparties = (int) ($rowCountTopCp['n'] ?? 0);
+
+    $sqlTopCp = "
+SELECT
+  peer_addr AS cp,
+  SUM(n_in) AS n_in,
+  SUM(n_out) AS n_out,
+  SUM(sum_in_raw) AS sum_in_raw,
+  SUM(sum_out_raw) AS sum_out_raw,
+  MIN(first_ts) AS first_seen,
+  MAX(last_ts) AS last_seen,
+  SUM(n_total) AS n_total
+FROM wallet_peer_daily
+WHERE day >= ? AND day <= ?
+GROUP BY peer_addr
+ORDER BY n_total DESC
+LIMIT {$perPage} OFFSET {$offActivity}
+";
+    $stCp = $pdo->prepare($sqlTopCp);
+    $stCp->execute($rangeParams);
+    $topCounterparties = $stCp->fetchAll();
+
+    $teamBundle = monitor_dashboard_team_wallet_bundle($pdo, $f);
+    $teamWalletActivity = $teamBundle['activity'];
+    $teamWalletMap = $teamBundle['map'];
+
+    $sqlCountTopWallets = "
+SELECT COUNT(*) AS n
+FROM (
+  SELECT 1
+  FROM wallet_holding_daily
+  WHERE day >= ? AND day <= ?
+  GROUP BY wallet
+) x
+";
+    $stCountTopWallets = $pdo->prepare($sqlCountTopWallets);
+    $stCountTopWallets->execute($rangeParams);
+    $rowCountTopWallets = $stCountTopWallets->fetch() ?: [];
+    $totalTopWallets = (int) ($rowCountTopWallets['n'] ?? 0);
+
+    $sqlTopWallets = "
+SELECT
+  wallet AS cp,
+  SUM(sum_payment_raw) AS sum_payment_raw,
+  SUM(sum_topup_raw) AS sum_topup_raw,
+  (SUM(sum_topup_raw) - SUM(sum_payment_raw)) AS wallet_tokens_raw,
+  SUM(n_payment) AS n_payment,
+  SUM(n_topup) AS n_topup
+FROM wallet_holding_daily
+WHERE day >= ? AND day <= ?
+GROUP BY wallet
+ORDER BY wallet_tokens_raw DESC
+LIMIT {$perPage} OFFSET {$offWallets}
+";
+    $stTopWallets = $pdo->prepare($sqlTopWallets);
+    $stTopWallets->execute($rangeParams);
+    $topWalletsByToken = $stTopWallets->fetchAll();
+
+    return [
         'topCounterparties' => $topCounterparties,
         'teamWalletActivity' => $teamWalletActivity,
         'teamWalletMap' => $teamWalletMap,
         'topWalletsByToken' => $topWalletsByToken,
-        'rows' => $rows,
-        'recentTransfersLimit' => $lim,
+        'rows' => [],
+        'recentTransfersLimit' => $perPage,
         'paging' => [
             'activity' => ['page' => $activityPage, 'perPage' => $perPage, 'total' => $totalTopCounterparties],
             'wallets' => ['page' => $walletsPage, 'perPage' => $perPage, 'total' => $totalTopWallets],
-            'transfers' => ['page' => $transfersPage, 'perPage' => $perPage, 'total' => $totalTransfers],
+            'transfers' => ['page' => 1, 'perPage' => $perPage, 'total' => 0],
         ],
     ];
 }
@@ -1628,7 +1722,6 @@ function monitor_dashboard_collect_wallets_only(
     array $f,
     int $activityPage = 1,
     int $walletsPage = 1,
-    int $transfersPage = 1,
     int $perPage = 50
 ): array
 {
@@ -1639,12 +1732,9 @@ function monitor_dashboard_collect_wallets_only(
     $excludeZeroPeerSql = $f['excludeZeroPeerSql'];
     $activityPage = max(1, $activityPage);
     $walletsPage = max(1, $walletsPage);
-    $transfersPage = max(1, $transfersPage);
     $perPage = max(10, min(200, $perPage));
     $offActivity = ($activityPage - 1) * $perPage;
     $offWallets = ($walletsPage - 1) * $perPage;
-    $offTransfers = ($transfersPage - 1) * $perPage;
-    $teamCutoffDate = '2026-03-11 00:00:00';
 
     if (($f['counterparty'] ?? '') === '' && monitor_wallet_metrics_should_use($pdo)) {
         try {
@@ -1653,7 +1743,6 @@ function monitor_dashboard_collect_wallets_only(
                 $f,
                 $activityPage,
                 $walletsPage,
-                $transfersPage,
                 $perPage
             );
         } catch (Throwable $e) {
@@ -1704,46 +1793,9 @@ LIMIT {$perPage} OFFSET {$offActivity}
     $stCp->execute($params);
     $topCounterparties = $stCp->fetchAll();
 
-    $teamWalletActivity = [];
-    $teamWalletMap = [];
-    if (($f['counterparty'] ?? '') === '') {
-        $sqlTeamActivity = "
-SELECT
-  (CASE WHEN rt.direction = 'in' THEN rt.from_addr ELSE rt.to_addr END) AS cp,
-  SUM(CASE WHEN rt.direction = 'in' THEN 1 ELSE 0 END) AS n_in,
-  SUM(CASE WHEN rt.direction = 'out' THEN 1 ELSE 0 END) AS n_out,
-  SUM(CASE WHEN rt.direction = 'in' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE 0 END) AS sum_in_raw,
-  SUM(CASE WHEN rt.direction = 'out' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE 0 END) AS sum_out_raw,
-  SUM(CASE WHEN ce.event_type = 'payment' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE 0 END) AS sum_payment_raw,
-  SUM(CASE WHEN ce.event_type = 'top_up' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE 0 END) AS sum_topup_raw,
-  (
-    SUM(CASE WHEN ce.event_type = 'top_up' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE 0 END)
-    -
-    SUM(CASE WHEN ce.event_type = 'payment' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE 0 END)
-  ) AS wallet_tokens_raw,
-  MIN(rt.block_time) AS first_seen,
-  MAX(rt.block_time) AS last_seen,
-  COUNT(*) AS n_total
-FROM raw_transfers rt
-LEFT JOIN classified_events ce ON ce.raw_transfer_id = rt.id
-WHERE $w
-  $cpSql
-  $excludeZeroPeerSql
-GROUP BY (CASE WHEN rt.direction = 'in' THEN rt.from_addr ELSE rt.to_addr END)
-HAVING MIN(rt.block_time) < ?
-ORDER BY n_total DESC
-LIMIT 200
-";
-        $stTeamActivity = $pdo->prepare($sqlTeamActivity);
-        $stTeamActivity->execute(array_merge($params, [$teamCutoffDate]));
-        $teamWalletActivity = $stTeamActivity->fetchAll() ?: [];
-        foreach ($teamWalletActivity as $tw) {
-            $cp = strtolower((string) ($tw['cp'] ?? ''));
-            if ($cp !== '' && preg_match('/^0x[a-f0-9]{40}$/', $cp)) {
-                $teamWalletMap[$cp] = true;
-            }
-        }
-    }
+    $teamBundle = monitor_dashboard_team_wallet_bundle($pdo, $f);
+    $teamWalletActivity = $teamBundle['activity'];
+    $teamWalletMap = $teamBundle['map'];
 
     $sqlCountTopWallets = "
 SELECT COUNT(*) AS n
@@ -1789,141 +1841,18 @@ LIMIT {$perPage} OFFSET {$offWallets}
     $stTopWallets->execute($params);
     $topWalletsByToken = $stTopWallets->fetchAll();
 
-    $sqlCountTransfers = "
-SELECT COUNT(*) AS n
-FROM raw_transfers rt
-LEFT JOIN classified_events ce ON ce.raw_transfer_id = rt.id
-WHERE $w
-  $cpSql
-  $excludeZeroPeerSql
-";
-    $stCountTransfers = $pdo->prepare($sqlCountTransfers);
-    $stCountTransfers->execute($params);
-    $rowCountTransfers = $stCountTransfers->fetch() ?: [];
-    $totalTransfers = (int) ($rowCountTransfers['n'] ?? 0);
-
-    $lim = $perPage;
-    $sqlList = "
-SELECT
-  rt.id,
-  rt.tx_hash,
-  rt.block_time,
-  rt.direction,
-  rt.from_addr,
-  rt.to_addr,
-  rt.amount_raw,
-  ce.event_type,
-  ce.counterparty,
-  ce.fee_token_raw,
-  ce.rule_version,
-  ce.confidence,
-  tg.cost_eth
-FROM raw_transfers rt
-LEFT JOIN classified_events ce ON ce.raw_transfer_id = rt.id
-LEFT JOIN tx_gas tg ON tg.tx_hash = rt.tx_hash
-WHERE $w
-  $cpSql
-  $excludeZeroPeerSql
-ORDER BY rt.block_time DESC, rt.id DESC
-LIMIT {$lim} OFFSET {$offTransfers}
-";
-    $stList = $pdo->prepare($sqlList);
-    $stList->execute($params);
-    $rows = $stList->fetchAll();
-
     return [
         'topCounterparties' => $topCounterparties,
         'teamWalletActivity' => $teamWalletActivity,
         'teamWalletMap' => $teamWalletMap,
         'topWalletsByToken' => $topWalletsByToken,
-        'rows' => $rows,
-        'recentTransfersLimit' => $lim,
+        'rows' => [],
+        'recentTransfersLimit' => $perPage,
         'paging' => [
             'activity' => ['page' => $activityPage, 'perPage' => $perPage, 'total' => $totalTopCounterparties],
             'wallets' => ['page' => $walletsPage, 'perPage' => $perPage, 'total' => $totalTopWallets],
-            'transfers' => ['page' => $transfersPage, 'perPage' => $perPage, 'total' => $totalTransfers],
+            'transfers' => ['page' => 1, 'perPage' => $perPage, 'total' => 0],
         ],
-    ];
-}
-
-/**
- * Vue flows: séries de flux (sans tableaux).
- *
- * @return array<string, mixed>
- */
-function monitor_dashboard_collect_flows(PDO $pdo, array $f): array
-{
-    if (($f['counterparty'] ?? '') === '' && monitor_daily_metrics_available($pdo)) {
-        try {
-            $all = monitor_dashboard_collect_from_daily_metrics($pdo, $f);
-            return [
-                'chartPayloadJson' => $all['chartPayloadJson'],
-                'hasCharts' => (($all['chartDaily'] ?? []) !== []),
-                'inTotalRaw' => $all['inTotalRaw'] ?? '0',
-                'outTotalRaw' => $all['outTotalRaw'] ?? '0',
-                'paymentSumRaw' => $all['paymentSumRaw'] ?? '0',
-                'topUpSumRaw' => $all['topUpSumRaw'] ?? '0',
-                'vaultApproxBizRaw' => $all['vaultApproxBizRaw'] ?? '0',
-            ];
-        } catch (Throwable $e) {
-            // fallback SQL classique
-        }
-    }
-
-    $shell = monitor_dashboard_collect_shell($pdo, $f, []);
-    $heavy = monitor_dashboard_collect_heavy($pdo, $f, [], $shell['byType'], false);
-
-    return [
-        'chartPayloadJson' => $heavy['chartPayloadJson'],
-        'hasCharts' => (($heavy['chartDaily'] ?? []) !== []),
-        'inTotalRaw' => $shell['inTotalRaw'] ?? '0',
-        'outTotalRaw' => $shell['outTotalRaw'] ?? '0',
-        'paymentSumRaw' => $shell['paymentSumRaw'] ?? '0',
-        'topUpSumRaw' => $shell['topUpSumRaw'] ?? '0',
-        'vaultApproxBizRaw' => $shell['vaultApproxBizRaw'] ?? '0',
-    ];
-}
-
-/**
- * Vue costs: coûts/frais.
- *
- * @return array<string, mixed>
- */
-function monitor_dashboard_collect_costs(PDO $pdo, array $f): array
-{
-    if (($f['counterparty'] ?? '') === '' && monitor_daily_metrics_available($pdo)) {
-        try {
-            $all = monitor_dashboard_collect_from_daily_metrics($pdo, $f);
-            $nTx = (int) (($all['flux']['n_tx'] ?? 0));
-            $gasEth = (float) (($all['gasRow']['gas_eth'] ?? 0));
-            $avgGasEthByTx = $nTx > 0 ? ($gasEth / $nTx) : 0.0;
-            return [
-                'feeRow' => $all['feeRow'] ?? ['fee_sum_raw' => '0'],
-                'gasRow' => $all['gasRow'] ?? ['gas_eth' => 0],
-                'nTx' => $nTx,
-                'avgGasEthByTx' => $avgGasEthByTx,
-                'chartPayloadJson' => $all['chartPayloadJson'],
-                'hasGasChart' => (($all['hasGasDailyChart'] ?? false) === true),
-            ];
-        } catch (Throwable $e) {
-            // fallback SQL classique
-        }
-    }
-
-    $shell = monitor_dashboard_collect_shell($pdo, $f, []);
-    $heavy = monitor_dashboard_collect_heavy($pdo, $f, [], $shell['byType'], false);
-
-    $nTx = (int) (($shell['flux']['n_tx'] ?? 0));
-    $gasEth = (float) (($shell['gasRow']['gas_eth'] ?? 0));
-    $avgGasEthByTx = $nTx > 0 ? ($gasEth / $nTx) : 0.0;
-
-    return [
-        'feeRow' => $shell['feeRow'] ?? ['fee_sum_raw' => '0'],
-        'gasRow' => $shell['gasRow'] ?? ['gas_eth' => 0],
-        'nTx' => $nTx,
-        'avgGasEthByTx' => $avgGasEthByTx,
-        'chartPayloadJson' => $heavy['chartPayloadJson'],
-        'hasGasChart' => (($heavy['hasGasDailyChart'] ?? false) === true),
     ];
 }
 

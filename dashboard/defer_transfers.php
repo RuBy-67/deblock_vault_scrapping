@@ -22,15 +22,35 @@ $counterparty = isset($_GET['counterparty']) ? strtolower(trim((string) $_GET['c
 if ($counterparty !== '' && !preg_match('/^0x[a-f0-9]{40}$/', $counterparty)) {
     $counterparty = '';
 }
+$transfersPage = max(1, (int) ($_GET['pt'] ?? 1));
 
 try {
     $pdo = monitor_pdo($cfg);
+} catch (Throwable $e) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Connexion MySQL : ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+try {
     $f = monitor_dashboard_filter_parts($dateFrom, $dateTo, $counterparty);
-    extract(monitor_dashboard_collect_costs($pdo, $f), EXTR_OVERWRITE);
+    extract(monitor_dashboard_collect_recent_transfers_only($pdo, $f, $transfersPage, 50), EXTR_OVERWRITE);
+    $dateFrom = $f['dateFrom'];
+    $dateTo = $f['dateTo'];
+    $counterparty = $f['counterparty'];
+
+    $cpDashboardHref = static function (string $cp) use ($dateFrom, $dateTo): string {
+        $cp = strtolower(trim($cp));
+        $q = ['date_from' => $dateFrom, 'date_to' => $dateTo, 'counterparty' => (preg_match('/^0x[a-f0-9]{40}$/', $cp) ? $cp : '')];
+
+        return 'wallets.php?' . http_build_query($q);
+    };
+
     ob_start();
-    require __DIR__ . '/views/costs_panel.php';
+    require __DIR__ . '/views/transfers_panel.php';
     $html = ob_get_clean();
-    echo json_encode(['cardsHtml' => '', 'html' => $html, 'chartPayloadJson' => $chartPayloadJson, 'initCharts' => true], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS);
+
+    echo json_encode(['cardsHtml' => '', 'html' => $html, 'chartPayloadJson' => '{}', 'initCharts' => false], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS);
 } catch (Throwable $e) {
     http_response_code(500);
     echo json_encode(['error' => $e->getMessage()], JSON_UNESCAPED_UNICODE);

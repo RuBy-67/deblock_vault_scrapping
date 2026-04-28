@@ -64,9 +64,12 @@ Montant du `Transfer` en **plus petite unité** du jeton (`uint256`), stocké en
 Interface découpée en **pages dédiées** (chargement différé des blocs lourds via endpoints `defer_*.php`) :
 
 - **`index.php`** — vue principale, KPIs, graphiques (Chart.js).
-- **`wallets.php`** — adresses actives, gros wallets, transferts récents (accéléré par `wallet_*_daily` + `daily_metrics` si disponibles).
-- **`flows.php`**, **`costs.php`**, **`quality.php`** — flux, coûts, qualité de classification.
+- **`wallets.php`** — adresses actives, wallets team, gros wallets (accéléré par `wallet_*_daily` + `daily_metrics` si disponibles).
+- **`transfers.php`** — derniers transferts seuls (requête lourde isolée ; pagination `pt`).
+- **`quality.php`** — qualité de classification (résumés / buckets ; accéléré par `classification_*` si à jour).
 - **`concentration.php`** — concentration des holders, métriques type Gini / cohortes (calculs lifetime côté SQL).
+
+Les vues **flux** et **coûts** (graphiques + KPIs) sont regroupées sur **`index.php`** ; il n’y a plus de pages séparées pour cela.
 
 Les filtres **dates** et **contrepartie** s’appliquent selon la page ; certaines métriques globales (ex. ordre de grandeur Vault) peuvent ignorer les dates pour refléter la vision « toute la période ingérée ».
 

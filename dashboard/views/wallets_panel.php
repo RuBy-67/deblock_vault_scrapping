@@ -7,8 +7,6 @@ declare(strict_types=1);
 /** @var list<array<string, mixed>> $teamWalletActivity */
 /** @var array<string, bool> $teamWalletMap */
 /** @var list<array<string, mixed>> $topWalletsByToken */
-/** @var list<array<string, mixed>> $rows */
-/** @var int $recentTransfersLimit */
 /** @var array<string, mixed> $paging */
 /** @var string $dateFrom */
 /** @var string $dateTo */
@@ -25,23 +23,25 @@ $isTeamWallet = static function (string $addr) use ($teamWalletMap): bool {
     return $a !== '' && isset($teamWalletMap[$a]);
 };
 
-$walletsPageLink = static function (int $pa, int $pw, int $pt) use ($dateFrom, $dateTo, $counterparty): string {
+$walletsPageLink = static function (int $pa, int $pw) use ($dateFrom, $dateTo, $counterparty): string {
     return 'wallets.php?' . http_build_query([
         'date_from' => $dateFrom,
         'date_to' => $dateTo,
         'counterparty' => $counterparty,
         'pa' => max(1, $pa),
         'pw' => max(1, $pw),
-        'pt' => max(1, $pt),
     ]);
 };
+$transfersPageHref = 'transfers.php?' . http_build_query([
+    'date_from' => $dateFrom,
+    'date_to' => $dateTo,
+    'counterparty' => $counterparty,
+]);
 $pa = (int) (($paging['activity']['page'] ?? 1));
 $pw = (int) (($paging['wallets']['page'] ?? 1));
-$pt = (int) (($paging['transfers']['page'] ?? 1));
 $tpa = (int) (($paging['activity']['total'] ?? 0));
 $tpw = (int) (($paging['wallets']['total'] ?? 0));
-$tpt = (int) (($paging['transfers']['total'] ?? 0));
-$pp = (int) (($paging['transfers']['perPage'] ?? 50));
+$pp = (int) (($paging['activity']['perPage'] ?? 50));
 ?>
 <?php if ($counterparty === '') : ?>
 <details class="panel panel-details" open>
@@ -99,15 +99,16 @@ $pp = (int) (($paging['transfers']['perPage'] ?? 50));
   <?php if ($tpa > $pp) : ?>
   <p class="muted">Page <?= htmlspecialchars(fmt_int_fr($pa)) ?> / <?= htmlspecialchars(fmt_int_fr((int) ceil($tpa / $pp))) ?> · <?= htmlspecialchars(fmt_int_fr($tpa)) ?> lignes</p>
   <p>
-    <?php if ($pa > 1) : ?><a href="<?= htmlspecialchars($walletsPageLink($pa - 1, $pw, $pt)) ?>">← Précédent</a><?php endif; ?>
+    <?php if ($pa > 1) : ?><a href="<?= htmlspecialchars($walletsPageLink($pa - 1, $pw)) ?>">← Précédent</a><?php endif; ?>
     <?php if ($pa > 1 && ($pa * $pp) < $tpa) : ?> · <?php endif; ?>
-    <?php if (($pa * $pp) < $tpa) : ?><a href="<?= htmlspecialchars($walletsPageLink($pa + 1, $pw, $pt)) ?>">Suivant →</a><?php endif; ?>
+    <?php if (($pa * $pp) < $tpa) : ?><a href="<?= htmlspecialchars($walletsPageLink($pa + 1, $pw)) ?>">Suivant →</a><?php endif; ?>
   </p>
   <?php endif; ?>
 </details>
 
 <details class="panel panel-details" open>
   <summary class="panel-details__summary">Wallet team - activité (first_seen &lt; 11/03/2026)</summary>
+  <p class="muted panel-details__intro">Tri décroissant par <strong>approx token</strong> (top_up − payment) sur la période.</p>
   <div class="table-wrap">
     <table>
       <thead>
@@ -213,68 +214,20 @@ $pp = (int) (($paging['transfers']['perPage'] ?? 50));
   <?php if ($tpw > $pp) : ?>
   <p class="muted">Page <?= htmlspecialchars(fmt_int_fr($pw)) ?> / <?= htmlspecialchars(fmt_int_fr((int) ceil($tpw / $pp))) ?> · <?= htmlspecialchars(fmt_int_fr($tpw)) ?> lignes</p>
   <p>
-    <?php if ($pw > 1) : ?><a href="<?= htmlspecialchars($walletsPageLink($pa, $pw - 1, $pt)) ?>">← Précédent</a><?php endif; ?>
+    <?php if ($pw > 1) : ?><a href="<?= htmlspecialchars($walletsPageLink($pa, $pw - 1)) ?>">← Précédent</a><?php endif; ?>
     <?php if ($pw > 1 && ($pw * $pp) < $tpw) : ?> · <?php endif; ?>
-    <?php if (($pw * $pp) < $tpw) : ?><a href="<?= htmlspecialchars($walletsPageLink($pa, $pw + 1, $pt)) ?>">Suivant →</a><?php endif; ?>
+    <?php if (($pw * $pp) < $tpw) : ?><a href="<?= htmlspecialchars($walletsPageLink($pa, $pw + 1)) ?>">Suivant →</a><?php endif; ?>
   </p>
   <?php endif; ?>
 </details>
 <?php endif; ?>
 
-<details class="panel panel-details" open>
-  <summary class="panel-details__summary">Derniers transferts (<?= (int) $recentTransfersLimit ?> max)</summary>
+<details class="panel panel-details">
+  <summary class="panel-details__summary">Derniers transferts</summary>
   <p class="muted panel-details__intro">
-    Même périmètre que les totaux : <strong>sans</strong> lignes mint/burn <code>0x0</code>.
+    La liste chronologique est sur une <strong>page dédiée</strong> : la requête est lourde sur de gros volumes ; les autres tableaux ci-dessus se chargent plus vite.
   </p>
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Temps</th>
-          <th>Dir</th>
-          <th>Type</th>
-          <th>Contrepartie</th>
-          <th>Montant (≈ €)</th>
-          <th>Frais Deblock est. (≈ €)</th>
-          <th>Gas (ETH)</th>
-          <th>Tx</th>
-        </tr>
-      </thead>
-      <tbody>
-        <?php foreach ($rows as $r) : ?>
-        <?php
-            $rowCp = strtolower(trim((string) ($r['counterparty'] ?? '')));
-            $rowCpOk = $rowCp !== '' && preg_match('/^0x[a-f0-9]{40}$/', $rowCp);
-            $isTeam = $rowCpOk ? $isTeamWallet($rowCp) : false;
-        ?>
-        <tr>
-          <td><?= htmlspecialchars((string) $r['block_time']) ?></td>
-          <td><?= htmlspecialchars((string) $r['direction']) ?></td>
-          <td><?= htmlspecialchars((string) ($r['event_type'] ?? '')) ?></td>
-          <td class="mono cp-cell" title="<?= htmlspecialchars($rowCp) ?>">
-            <?php if ($rowCpOk) : ?>
-            <a href="<?= htmlspecialchars($cpDashboardHref($rowCp)) ?>" title="Filtrer sur ce portefeuille" style="<?= $isTeam ? 'color:#b91c1c;font-weight:700;' : '' ?>"><?= htmlspecialchars(substr($rowCp, 0, 10)) ?>…</a>
-            <button type="button" class="btn-copy btn-copy--sm" data-copy="<?= htmlspecialchars($rowCp) ?>" data-copy-label="Copier" title="Copier l’adresse">Copier</button>
-            <?php if ($isTeam) : ?><span class="muted" style="display:block;color:#b91c1c;font-size:0.75rem">TEAM</span><?php endif; ?>
-            <?php else : ?>
-            —
-            <?php endif; ?>
-          </td>
-          <td><?= htmlspecialchars(fmt_eur((string) $r['amount_raw'])) ?></td>
-          <td><?= $r['fee_token_raw'] ? htmlspecialchars(fmt_eur((string) $r['fee_token_raw'])) : '—' ?></td>
-          <td><?= htmlspecialchars(fmt_eth($r['cost_eth'] ?? null)) ?></td>
-          <td class="mono"><a href="https://etherscan.io/tx/<?= htmlspecialchars((string) $r['tx_hash']) ?>" target="_blank" rel="noopener">voir</a></td>
-        </tr>
-        <?php endforeach; ?>
-      </tbody>
-    </table>
-  </div>
-  <?php if ($tpt > $pp) : ?>
-  <p class="muted">Page <?= htmlspecialchars(fmt_int_fr($pt)) ?> / <?= htmlspecialchars(fmt_int_fr((int) ceil($tpt / $pp))) ?> · <?= htmlspecialchars(fmt_int_fr($tpt)) ?> lignes</p>
-  <p>
-    <?php if ($pt > 1) : ?><a href="<?= htmlspecialchars($walletsPageLink($pa, $pw, $pt - 1)) ?>">← Précédent</a><?php endif; ?>
-    <?php if ($pt > 1 && ($pt * $pp) < $tpt) : ?> · <?php endif; ?>
-    <?php if (($pt * $pp) < $tpt) : ?><a href="<?= htmlspecialchars($walletsPageLink($pa, $pw, $pt + 1)) ?>">Suivant →</a><?php endif; ?>
+  <p style="margin:0">
+    <a class="view-switch__link" href="<?= htmlspecialchars($transfersPageHref) ?>" style="display:inline-block;margin-top:0.35rem">Ouvrir les derniers transferts →</a>
   </p>
-  <?php endif; ?>
 </details>

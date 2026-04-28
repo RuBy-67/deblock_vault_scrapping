@@ -59,12 +59,7 @@ $walletsUrl = 'wallets.php?' . http_build_query([
     'date_to' => $dateTo,
     'counterparty' => $counterparty,
 ]);
-$flowsUrl = 'flows.php?' . http_build_query([
-    'date_from' => $dateFrom,
-    'date_to' => $dateTo,
-    'counterparty' => $counterparty,
-]);
-$costsUrl = 'costs.php?' . http_build_query([
+$transfersUrl = 'transfers.php?' . http_build_query([
     'date_from' => $dateFrom,
     'date_to' => $dateTo,
     'counterparty' => $counterparty,

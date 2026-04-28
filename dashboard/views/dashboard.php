@@ -9,10 +9,9 @@ declare(strict_types=1);
 /** @var string $activePage */
 /** @var string $dashboardUrl */
 /** @var string $walletsUrl */
-/** @var string $flowsUrl */
-/** @var string $costsUrl */
 /** @var string $qualityUrl */
 /** @var string $concentrationUrl */
+/** @var string $transfersUrl */
 /** @var string $deferEndpoint */
 /** @var bool $loadCharts */
 /** @var string $deferredStatusText */
@@ -85,8 +84,7 @@ $ogDescription = 'Tableau de bord : flux on-chain du noeud, volumes, classificat
   <nav class="view-switch" aria-label="Vues du dashboard">
     <a class="view-switch__link<?= $activePage === 'dashboard' ? ' is-active' : '' ?>" href="<?= htmlspecialchars($dashboardUrl) ?>">Dashboard</a>
     <a class="view-switch__link<?= $activePage === 'wallets' ? ' is-active' : '' ?>" href="<?= htmlspecialchars($walletsUrl) ?>">Wallets</a>
-    <a class="view-switch__link<?= $activePage === 'flows' ? ' is-active' : '' ?>" href="<?= htmlspecialchars($flowsUrl) ?>">Flux</a>
-    <a class="view-switch__link<?= $activePage === 'costs' ? ' is-active' : '' ?>" href="<?= htmlspecialchars($costsUrl) ?>">Coûts</a>
+    <a class="view-switch__link<?= $activePage === 'transfers' ? ' is-active' : '' ?>" href="<?= htmlspecialchars($transfersUrl) ?>">Transferts</a>
     <a class="view-switch__link<?= $activePage === 'quality' ? ' is-active' : '' ?>" href="<?= htmlspecialchars($qualityUrl) ?>">Qualité</a>
     <a class="view-switch__link<?= $activePage === 'concentration' ? ' is-active' : '' ?>" href="<?= htmlspecialchars($concentrationUrl) ?>">Concentration</a>
   </nav>

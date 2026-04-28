@@ -21,6 +21,11 @@ declare(strict_types=1);
 /** @var array<string, mixed> $gasRow */
 /** @var string $counterparty */
 ?>
+<?php
+$gasEthTotalCard = (float) ($gasRow['gas_eth'] ?? 0);
+$nTxCard = (int) ($nTxAllRaw ?? 0);
+$avgGasEthByTxCard = $nTxCard > 0 ? ($gasEthTotalCard / $nTxCard) : 0.0;
+?>
 <section class="cards cards--top" id="monitor-cards-mount">
   <div class="card">
     <h3>Sur le noeud (total chaîne)</h3>
@@ -69,7 +74,21 @@ declare(strict_types=1);
   <div class="card">
     <h3>Coûts période</h3>
     <p class="metric-one-line"><span class="metric-inline-label">Deblock (estimation, frais prelevés sur le jeton)</span><br><strong><?= htmlspecialchars(fmt_eur((string) ($feeRow['fee_sum_raw'] ?? '0'))) ?></strong></p>
-    <p class="metric-one-line"><span class="metric-inline-label">Gas (ETH)</span><br><strong><?= htmlspecialchars(fmt_eth((string) ($gasRow['gas_eth'] ?? '0'))) ?></strong></p>
+    <dl class="metric-pair metric-pair--2col" style="margin-top:0.5rem">
+      <div>
+        <dt>Gas (ETH)</dt>
+        <dd><strong><?= htmlspecialchars(fmt_eth((string) ($gasRow['gas_eth'] ?? '0'))) ?></strong></dd>
+      </div>
+      <div>
+        <dt>Coût moyen</dt>
+        <dd><strong><?= $nTxCard > 0 ? htmlspecialchars(fmt_eth(number_format($avgGasEthByTxCard, 12, '.', ''))) : '—' ?></strong></dd>
+        <?php if ($nTxCard > 0) : ?>
+        <dd class="metric-note">Gas total ÷ <?= htmlspecialchars(fmt_int_fr($nTxCard)) ?> transferts (périmètre filtré).</dd>
+        <?php else : ?>
+        <dd class="metric-note">Aucun transfert sur la période.</dd>
+        <?php endif; ?>
+      </div>
+    </dl>
     <h4 style="margin:0.65rem 0 0.35rem;font-size:0.95rem;font-weight:700;color:#1a1a1a">Gas (ETH) cumulé (progression)</h4>
     <div class="vault-mini-chart vault-mini-chart--delta" aria-label="Gas (ETH) cumulé (progression) par jour">
       <canvas id="chartGasDaily" aria-label="Gas (ETH) cumulé (progression) par jour"></canvas>

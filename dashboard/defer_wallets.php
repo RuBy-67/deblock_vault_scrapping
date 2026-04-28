@@ -24,7 +24,6 @@ if ($counterparty !== '' && !preg_match('/^0x[a-f0-9]{40}$/', $counterparty)) {
 }
 $activityPage = max(1, (int) ($_GET['pa'] ?? 1));
 $walletsPage = max(1, (int) ($_GET['pw'] ?? 1));
-$transfersPage = max(1, (int) ($_GET['pt'] ?? 1));
 
 try {
     $pdo = monitor_pdo($cfg);
@@ -36,7 +35,7 @@ try {
 
 try {
     $f = monitor_dashboard_filter_parts($dateFrom, $dateTo, $counterparty);
-    extract(monitor_dashboard_collect_wallets_only($pdo, $f, $activityPage, $walletsPage, $transfersPage, 50), EXTR_OVERWRITE);
+    extract(monitor_dashboard_collect_wallets_only($pdo, $f, $activityPage, $walletsPage, 50), EXTR_OVERWRITE);
     $dateFrom = $f['dateFrom'];
     $dateTo = $f['dateTo'];
     $counterparty = $f['counterparty'];
