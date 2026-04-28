@@ -15,9 +15,9 @@
   --surface-insight: #fafafa;
   --input-border: #ccc;
   --input-bg: #fff;
-  --accent: #2563eb;
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
+  --accent: #1a1a1a;
+  --primary: #1a1a1a;
+  --primary-hover: #333333;
   --chart-c1-fill: rgba(26, 26, 26, 0.55);
   --chart-c1-stroke: #1a1a1a;
   --chart-c1-area: rgba(26, 26, 26, 0.12);
@@ -29,9 +29,22 @@
   --chart-c3-area: rgba(107, 114, 128, 0.08);
   --chart-c4-stroke: #374151;
   --chart-c5-stroke: #52525b;
+  /* Graphique combiné payment / top_up (contraste renforcé) */
+  --chart-pay-line: #111111;
+  --chart-pay-area: rgba(17, 17, 17, 0.14);
+  --chart-pay-bar: rgba(17, 17, 17, 0.62);
+  --chart-topup-line: #6b6b6b;
+  --chart-topup-area: rgba(0, 0, 0, 0);
+  --chart-topup-bar: rgba(107, 107, 107, 0.5);
+  /* Volume payment par semaine (4 séries lisibles en clair) */
+  --chart-weekly-bar-fill: rgba(30, 64, 110, 0.72);
+  --chart-weekly-bar-stroke: #1e3f73;
+  --chart-weekly-line-active: #0f766e;
+  --chart-weekly-line-plage: #c2410c;
+  --chart-weekly-line-account: #6d28d9;
   --view-switch-text: #334155;
-  --view-switch-active-border: #bfdbfe;
-  --view-switch-active-text: #1e40af;
+  --view-switch-active-border: #b5b8bc;
+  --view-switch-active-text: #1a1a1a;
   --view-switch-active-bg: #ffffff;
   --view-switch-hover-text: #0f172a;
   --view-switch-hover-bg: rgba(255, 255, 255, 0.78);
@@ -93,6 +106,17 @@ html[data-theme="dark"] {
   --chart-c3-area: rgba(148, 163, 184, 0.08);
   --chart-c4-stroke: rgba(1, 212, 186, 0.55);
   --chart-c5-stroke: #94a3b8;
+  --chart-pay-line: #01d4ba;
+  --chart-pay-area: rgba(1, 212, 186, 0.16);
+  --chart-pay-bar: rgba(1, 212, 186, 0.48);
+  --chart-topup-line: #7dd3c0;
+  --chart-topup-area: rgba(125, 211, 192, 0.06);
+  --chart-topup-bar: rgba(125, 211, 192, 0.38);
+  --chart-weekly-bar-fill: rgba(1, 212, 186, 0.42);
+  --chart-weekly-bar-stroke: #01d4ba;
+  --chart-weekly-line-active: #5eead4;
+  --chart-weekly-line-plage: #fb923c;
+  --chart-weekly-line-account: #c4b5fd;
 }
 
 body {
@@ -158,6 +182,26 @@ body {
 .muted {
   color: var(--text-muted);
   font-size: 0.9rem;
+}
+
+/* Badges TEAM (wallets / transferts) : rouge en clair, teal Deblock en sombre */
+a.wallet-team-link {
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+html[data-theme="dark"] a.wallet-team-link {
+  color: #01d4ba;
+}
+
+.muted.wallet-team-badge {
+  display: block;
+  font-size: 0.75rem;
+  color: #b91c1c;
+}
+
+html[data-theme="dark"] .muted.wallet-team-badge {
+  color: #01d4ba;
 }
 
 .filters {

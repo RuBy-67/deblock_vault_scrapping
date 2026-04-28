@@ -71,12 +71,12 @@ $pp = (int) (($paging['activity']['perPage'] ?? 50));
         ?>
         <tr>
           <td class="mono cp-cell" style="font-size:0.82rem">
-            <a href="<?= htmlspecialchars($cpDashboardHref($cpAdr)) ?>" title="Filtrer le tableau de bord sur ce portefeuille" style="<?= $isTeam ? 'color:#b91c1c;font-weight:700;' : '' ?>"><?= htmlspecialchars(substr($cpAdr, 0, 12)) ?>…</a>
+            <a href="<?= htmlspecialchars($cpDashboardHref($cpAdr)) ?>" title="Filtrer le tableau de bord sur ce portefeuille"<?= $isTeam ? ' class="wallet-team-link"' : '' ?>><?= htmlspecialchars(substr($cpAdr, 0, 12)) ?>…</a>
             <span class="cp-actions">
               <button type="button" class="btn-copy btn-copy--sm" data-copy="<?= htmlspecialchars($cpAdr) ?>" data-copy-label="Copier" title="Copier l’adresse complète">Copier</button>
               <a href="https://etherscan.io/address/<?= htmlspecialchars($cpAdr) ?>" target="_blank" rel="noopener" class="muted" style="font-size:0.75rem">Etherscan</a>
             </span>
-            <?php if ($isTeam) : ?><span class="muted" style="display:block;color:#b91c1c;font-size:0.75rem">TEAM</span><?php endif; ?>
+            <?php if ($isTeam) : ?><span class="muted wallet-team-badge">TEAM</span><?php endif; ?>
           </td>
           <td><?= htmlspecialchars(fmt_int_fr($ni)) ?></td>
           <td><?= htmlspecialchars(fmt_int_fr($no)) ?></td>
@@ -135,12 +135,12 @@ $pp = (int) (($paging['activity']['perPage'] ?? 50));
         ?>
         <tr>
           <td class="mono cp-cell" style="font-size:0.82rem">
-            <a href="<?= htmlspecialchars($cpDashboardHref($cpAdr)) ?>" title="Filtrer le tableau de bord sur ce portefeuille" style="<?= $isTeam ? 'color:#b91c1c;font-weight:700;' : '' ?>"><?= htmlspecialchars(substr($cpAdr, 0, 12)) ?>…</a>
+            <a href="<?= htmlspecialchars($cpDashboardHref($cpAdr)) ?>" title="Filtrer le tableau de bord sur ce portefeuille"<?= $isTeam ? ' class="wallet-team-link"' : '' ?>><?= htmlspecialchars(substr($cpAdr, 0, 12)) ?>…</a>
             <span class="cp-actions">
               <button type="button" class="btn-copy btn-copy--sm" data-copy="<?= htmlspecialchars($cpAdr) ?>" data-copy-label="Copier" title="Copier l’adresse complète">Copier</button>
               <a href="https://etherscan.io/address/<?= htmlspecialchars($cpAdr) ?>" target="_blank" rel="noopener" class="muted" style="font-size:0.75rem">Etherscan</a>
             </span>
-            <?php if ($isTeam) : ?><span class="muted" style="display:block;color:#b91c1c;font-size:0.75rem">TEAM</span><?php endif; ?>
+            <?php if ($isTeam) : ?><span class="muted wallet-team-badge">TEAM</span><?php endif; ?>
           </td>
           <td><?= htmlspecialchars(fmt_int_fr($ni)) ?></td>
           <td><?= htmlspecialchars(fmt_int_fr($no)) ?></td>
@@ -190,12 +190,12 @@ $pp = (int) (($paging['activity']['perPage'] ?? 50));
         ?>
         <tr>
           <td class="mono cp-cell" style="font-size:0.82rem">
-            <a href="<?= htmlspecialchars($cpDashboardHref($cpAdr)) ?>" title="Filtrer le tableau de bord sur ce portefeuille" style="<?= $isTeam ? 'color:#b91c1c;font-weight:700;' : '' ?>"><?= htmlspecialchars(substr($cpAdr, 0, 12)) ?>…</a>
+            <a href="<?= htmlspecialchars($cpDashboardHref($cpAdr)) ?>" title="Filtrer le tableau de bord sur ce portefeuille"<?= $isTeam ? ' class="wallet-team-link"' : '' ?>><?= htmlspecialchars(substr($cpAdr, 0, 12)) ?>…</a>
             <span class="cp-actions">
               <button type="button" class="btn-copy btn-copy--sm" data-copy="<?= htmlspecialchars($cpAdr) ?>" data-copy-label="Copier" title="Copier l’adresse complète">Copier</button>
               <a href="https://etherscan.io/address/<?= htmlspecialchars($cpAdr) ?>" target="_blank" rel="noopener" class="muted" style="font-size:0.75rem">Etherscan</a>
             </span>
-            <?php if ($isTeam) : ?><span class="muted" style="display:block;color:#b91c1c;font-size:0.75rem">TEAM</span><?php endif; ?>
+            <?php if ($isTeam) : ?><span class="muted wallet-team-badge">TEAM</span><?php endif; ?>
           </td>
           <td><?= htmlspecialchars(fmt_eur_signed_raw($walletRaw)) ?></td>
           <td><?= htmlspecialchars(fmt_eur((string) ($tr['sum_topup_raw'] ?? '0'))) ?></td>

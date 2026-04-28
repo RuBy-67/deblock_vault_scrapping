@@ -75,9 +75,9 @@ $pp = (int) (($paging['transfers']['perPage'] ?? 50));
           <td><?= htmlspecialchars((string) ($r['event_type'] ?? '')) ?></td>
           <td class="mono cp-cell" title="<?= htmlspecialchars($rowCp) ?>">
             <?php if ($rowCpOk) : ?>
-            <a href="<?= htmlspecialchars($cpDashboardHref($rowCp)) ?>" title="Filtrer sur ce portefeuille" style="<?= $isTeam ? 'color:#b91c1c;font-weight:700;' : '' ?>"><?= htmlspecialchars(substr($rowCp, 0, 10)) ?>…</a>
+            <a href="<?= htmlspecialchars($cpDashboardHref($rowCp)) ?>" title="Filtrer sur ce portefeuille"<?= $isTeam ? ' class="wallet-team-link"' : '' ?>><?= htmlspecialchars(substr($rowCp, 0, 10)) ?>…</a>
             <button type="button" class="btn-copy btn-copy--sm" data-copy="<?= htmlspecialchars($rowCp) ?>" data-copy-label="Copier" title="Copier l’adresse">Copier</button>
-            <?php if ($isTeam) : ?><span class="muted" style="display:block;color:#b91c1c;font-size:0.75rem">TEAM</span><?php endif; ?>
+            <?php if ($isTeam) : ?><span class="muted wallet-team-badge">TEAM</span><?php endif; ?>
             <?php else : ?>
             —
             <?php endif; ?>

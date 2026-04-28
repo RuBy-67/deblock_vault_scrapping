@@ -156,6 +156,17 @@
       c3Area: g('--chart-c3-area', 'rgba(107,114,128,0.1)'),
       c4Stroke: g('--chart-c4-stroke', '#374151'),
       c5Stroke: g('--chart-c5-stroke', '#52525b'),
+      payLine: g('--chart-pay-line', '#111111'),
+      payArea: g('--chart-pay-area', 'rgba(17,17,17,0.14)'),
+      payBar: g('--chart-pay-bar', 'rgba(17,17,17,0.62)'),
+      topupLine: g('--chart-topup-line', '#6b6b6b'),
+      topupArea: g('--chart-topup-area', 'rgba(0,0,0,0)'),
+      topupBar: g('--chart-topup-bar', 'rgba(107,107,107,0.5)'),
+      weeklyBarFill: g('--chart-weekly-bar-fill', 'rgba(30,64,110,0.72)'),
+      weeklyBarStroke: g('--chart-weekly-bar-stroke', '#1e3f73'),
+      weeklyLineActive: g('--chart-weekly-line-active', '#0f766e'),
+      weeklyLinePlage: g('--chart-weekly-line-plage', '#c2410c'),
+      weeklyLineAccount: g('--chart-weekly-line-account', '#6d28d9'),
     };
   }
 
@@ -181,6 +192,9 @@
         var grid = Object.assign({}, sc.grid || {});
         grid.color = tc.grid;
         sc.grid = grid;
+        if (sc.title && typeof sc.title === 'object') {
+          sc.title = Object.assign({}, sc.title, { color: tc.tick });
+        }
       });
     }
   }
@@ -431,41 +445,16 @@
             labels: labels,
             datasets: [
               {
-                type: 'line',
-                yAxisID: 'yVolume',
-                label: 'Payment (≈ €)',
-                data: dailyClass.map(function (d) {
-                  return d.payment;
-                }),
-                borderColor: pal.c1Stroke,
-                backgroundColor: pal.c1Area,
-                fill: true,
-                tension: 0.2,
-                pointRadius: 2,
-              },
-              {
-                type: 'line',
-                yAxisID: 'yVolume',
-                label: 'Top up (≈ €)',
-                data: dailyClass.map(function (d) {
-                  return d.top_up;
-                }),
-                borderColor: pal.c2Stroke,
-                backgroundColor: pal.c2Area,
-                fill: true,
-                tension: 0.2,
-                pointRadius: 2,
-              },
-              {
                 type: 'bar',
                 yAxisID: 'yCount',
                 label: 'Payment (#)',
                 data: dailyClass.map(function (d) {
                   return d.nPayment;
                 }),
-                backgroundColor: pal.c1Fill,
-                borderColor: pal.c1Stroke,
+                backgroundColor: pal.payBar,
+                borderColor: pal.payLine,
                 borderWidth: 1,
+                order: 1,
               },
               {
                 type: 'bar',
@@ -474,9 +463,41 @@
                 data: dailyClass.map(function (d) {
                   return d.nTopUp;
                 }),
-                backgroundColor: pal.c2Fill,
-                borderColor: pal.c2Stroke,
+                backgroundColor: pal.topupBar,
+                borderColor: pal.topupLine,
                 borderWidth: 1,
+                order: 2,
+              },
+              {
+                type: 'line',
+                yAxisID: 'yVolume',
+                label: 'Payment (≈ €)',
+                data: dailyClass.map(function (d) {
+                  return d.payment;
+                }),
+                borderColor: pal.payLine,
+                backgroundColor: pal.payArea,
+                borderWidth: 2,
+                fill: true,
+                tension: 0.2,
+                pointRadius: 2,
+                order: 3,
+              },
+              {
+                type: 'line',
+                yAxisID: 'yVolume',
+                label: 'Top up (≈ €)',
+                data: dailyClass.map(function (d) {
+                  return d.top_up;
+                }),
+                borderColor: pal.topupLine,
+                backgroundColor: pal.topupArea,
+                borderWidth: 2,
+                borderDash: [6, 4],
+                fill: false,
+                tension: 0.2,
+                pointRadius: 2,
+                order: 4,
               },
             ],
           },
@@ -484,8 +505,22 @@
             responsive: true,
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
+            datasets: {
+              bar: {
+                categoryPercentage: 0.72,
+                barPercentage: 0.85,
+                borderRadius: 3,
+              },
+            },
             plugins: {
-              legend: { position: 'top' },
+              legend: {
+                position: 'top',
+                labels: {
+                  usePointStyle: true,
+                  padding: 14,
+                  boxWidth: 10,
+                },
+              },
               tooltip: {
                 callbacks: {
                   label: function (ctx) {
@@ -504,11 +539,19 @@
               yVolume: {
                 position: 'left',
                 beginAtZero: true,
+                title: {
+                  display: true,
+                  text: 'Volume (≈ € / jour)',
+                },
                 ticks: { callback: function (val) { return fmtEurAxis(val); } },
               },
               yCount: {
                 position: 'right',
                 beginAtZero: true,
+                title: {
+                  display: true,
+                  text: 'Nombre de lignes (tx / jour)',
+                },
                 grid: { drawOnChartArea: false },
                 ticks: { callback: function (val) { return fmtN(val); } },
               },
@@ -887,8 +930,8 @@
                 type: 'bar',
                 label: 'Volume payment (≈ €)',
                 data: wdata,
-                backgroundColor: pal.c1Fill,
-                borderColor: pal.c1Stroke,
+                backgroundColor: pal.weeklyBarFill,
+                borderColor: pal.weeklyBarStroke,
                 borderWidth: 1,
                 order: 3,
               },
@@ -898,7 +941,7 @@
                 data: wlabels.map(function () {
                   return avgA;
                 }),
-                borderColor: pal.c4Stroke,
+                borderColor: pal.weeklyLineActive,
                 backgroundColor: 'transparent',
                 borderWidth: 2,
                 borderDash: [6, 4],
@@ -912,7 +955,7 @@
                 data: wlabels.map(function () {
                   return avgC;
                 }),
-                borderColor: pal.c5Stroke,
+                borderColor: pal.weeklyLinePlage,
                 backgroundColor: 'transparent',
                 borderWidth: 2,
                 borderDash: [2, 3],
@@ -926,7 +969,7 @@
                 data: weeklyPay.map(function (w) {
                   return w.avgPerAccountEur;
                 }),
-                borderColor: pal.c3Stroke,
+                borderColor: pal.weeklyLineAccount,
                 backgroundColor: 'transparent',
                 borderWidth: 2,
                 pointRadius: 3,
@@ -940,7 +983,14 @@
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
             plugins: {
-              legend: { position: 'top' },
+              legend: {
+                position: 'top',
+                labels: {
+                  usePointStyle: true,
+                  padding: 12,
+                  boxWidth: 8,
+                },
+              },
               tooltip: {
                 callbacks: {
                   afterBody: function (items) {
