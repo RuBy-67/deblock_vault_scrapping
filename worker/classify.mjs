@@ -38,7 +38,11 @@ const INSERT_BATCH_SIZE = Math.max(
 );
 
 // Paliers approx wallet (top_up - payment) -> plafond de jambe interest.
-const TIER_50K = 50000000000000000000000n;
+const TIER_5K = 5000000000000000000000n;
+const TIER_10K = 10000000000000000000000n;
+const TIER_20K = 20000000000000000000000n;
+const TIER_30K = 30000000000000000000000n;
+const TIER_40K = 40000000000000000000000n;
 const TIER_100K = 100000000000000000000000n;
 const TIER_200K = 200000000000000000000000n;
 const TIER_500K = 500000000000000000000000n;
@@ -46,6 +50,7 @@ const LEG_MAX_5 = 5000000000000000000n;
 const LEG_MAX_10 = 10000000000000000000n;
 const LEG_MAX_20 = 20000000000000000000n;
 const LEG_MAX_30 = 30000000000000000000n;
+const LEG_MAX_40 = 40000000000000000000n;
 const LEG_MAX_50 = 50000000000000000000n;
 
 function absDiff(a, b) {
@@ -169,7 +174,11 @@ function pairMaxForApprox(approxRaw) {
   if (approxRaw >= TIER_500K) return LEG_MAX_50;
   if (approxRaw >= TIER_200K) return LEG_MAX_30;
   if (approxRaw >= TIER_100K) return LEG_MAX_20;
-  if (approxRaw >= TIER_50K) return LEG_MAX_10;
+  if (approxRaw >= TIER_40K) return LEG_MAX_10;
+  if (approxRaw >= TIER_30K) return LEG_MAX_30;
+  if (approxRaw >= TIER_20K) return LEG_MAX_20;
+  if (approxRaw >= TIER_10K) return LEG_MAX_10;
+  if (approxRaw >= TIER_5K) return LEG_MAX_5;
   return LEG_MAX_5;
 }
 
@@ -365,8 +374,12 @@ try {
     fullRebuild: FULL_REBUILD,
     rule: RULE,
     interestTiersRaw: {
-      lt50k: LEG_MAX_5.toString(),
-      gte50k: LEG_MAX_10.toString(),
+      lt5k: LEG_MAX_5.toString(),
+      gte5k: LEG_MAX_5.toString(),
+      gte10k: LEG_MAX_10.toString(),
+      gte20k: LEG_MAX_20.toString(),
+      gte30k: LEG_MAX_30.toString(),
+      gte40k: LEG_MAX_10.toString(),
       gte100k: LEG_MAX_20.toString(),
       gte200k: LEG_MAX_30.toString(),
       gte500k: LEG_MAX_50.toString(),
