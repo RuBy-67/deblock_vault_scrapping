@@ -1267,6 +1267,7 @@ function monitor_dashboard_collect_wallets_only(
     $offActivity = ($activityPage - 1) * $perPage;
     $offWallets = ($walletsPage - 1) * $perPage;
     $offTransfers = ($transfersPage - 1) * $perPage;
+    $teamCutoffDate = '2026-03-11 00:00:00';
 
     $totalTopCounterparties = 0;
     if (($f['counterparty'] ?? '') === '') {
@@ -1310,6 +1311,33 @@ LIMIT {$perPage} OFFSET {$offActivity}
     $stCp = $pdo->prepare($sqlTopCp);
     $stCp->execute($params);
     $topCounterparties = $stCp->fetchAll();
+
+    $teamWalletActivity = [];
+    if (($f['counterparty'] ?? '') === '') {
+        $sqlTeamActivity = "
+SELECT
+  (CASE WHEN rt.direction = 'in' THEN rt.from_addr ELSE rt.to_addr END) AS cp,
+  SUM(CASE WHEN rt.direction = 'in' THEN 1 ELSE 0 END) AS n_in,
+  SUM(CASE WHEN rt.direction = 'out' THEN 1 ELSE 0 END) AS n_out,
+  SUM(CASE WHEN rt.direction = 'in' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE 0 END) AS sum_in_raw,
+  SUM(CASE WHEN rt.direction = 'out' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE 0 END) AS sum_out_raw,
+  MIN(rt.block_time) AS first_seen,
+  MAX(rt.block_time) AS last_seen,
+  COUNT(*) AS n_total
+FROM raw_transfers rt
+{$cpJoinLeftSql}
+WHERE $w
+  $cpSql
+  $excludeZeroPeerSql
+GROUP BY (CASE WHEN rt.direction = 'in' THEN rt.from_addr ELSE rt.to_addr END)
+HAVING MIN(rt.block_time) < ?
+ORDER BY n_total DESC
+LIMIT 200
+";
+        $stTeamActivity = $pdo->prepare($sqlTeamActivity);
+        $stTeamActivity->execute(array_merge($params, [$teamCutoffDate]));
+        $teamWalletActivity = $stTeamActivity->fetchAll() ?: [];
+    }
 
     $sqlCountTopWallets = "
 SELECT COUNT(*) AS n
@@ -1399,6 +1427,7 @@ LIMIT {$lim} OFFSET {$offTransfers}
 
     return [
         'topCounterparties' => $topCounterparties,
+        'teamWalletActivity' => $teamWalletActivity,
         'topWalletsByToken' => $topWalletsByToken,
         'rows' => $rows,
         'recentTransfersLimit' => $lim,
@@ -1582,7 +1611,7 @@ function monitor_dashboard_collect_concentration(PDO $pdo, array $f): array
         $cpSql = ' AND ce.counterparty = ? ';
         $params[] = $counterparty;
     }
-    $teamCutoffDate = '2026-03-12 00:00:00';
+    $teamCutoffDate = '2026-03-11 00:00:00';
 
     $sql = "
 SELECT

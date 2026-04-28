@@ -51,7 +51,7 @@ $fmtRaw = static function (string $raw): string {
     <p class="muted">Supply positive approx: <?= htmlspecialchars($fmtRaw((string) $concTotalSupplyRaw)) ?></p>
   </div>
   <div class="card">
-    <h3>Wallets team (règle date)</h3>
+    <h3>Wallets team</h3>
     <p class="metric-one-line"><strong><?= htmlspecialchars(fmt_int_fr((int) $concTeamWalletCount)) ?></strong></p>
     <p class="muted">first_seen &lt; <?= htmlspecialchars((string) $concTeamCutoffDate) ?> | supply: <?= htmlspecialchars($fmtRaw((string) $concTeamHoldingRaw)) ?> (<?= htmlspecialchars(number_format((float) $concTeamHoldingPct, 2, ',', ' ')) ?>%)</p>
   </div>
@@ -73,7 +73,7 @@ $fmtRaw = static function (string $raw): string {
       </thead>
       <tbody>
         <tr>
-          <td>Team (&lt; 12/03/2026)</td>
+          <td>Team (&lt; 11/03/2026)</td>
           <td><?= htmlspecialchars($fmtRaw((string) $concTeamInterestRaw)) ?></td>
           <td><?= htmlspecialchars(number_format((float) $concTeamInterestPct, 2, ',', ' ')) ?>%</td>
         </tr>
