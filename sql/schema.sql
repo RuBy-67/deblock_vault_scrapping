@@ -92,4 +92,80 @@ CREATE TABLE IF NOT EXISTS wallet_estimates (
   KEY idx_we_addr_time (address, as_of)
 ) ENGINE=InnoDB;
 
+-- ---------------------------------------------------------------------------
+-- Agrégats journaliers (dashboard / flows / costs) — remplis par build_daily_metrics.mjs
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS daily_metrics (
+  day DATE NOT NULL,
+  n_tx BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  n_payment BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  n_topup BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  n_interest BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  n_unknown BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  sum_in_raw DECIMAL(65,0) NOT NULL DEFAULT 0,
+  sum_out_raw DECIMAL(65,0) NOT NULL DEFAULT 0,
+  sum_payment_raw DECIMAL(65,0) NOT NULL DEFAULT 0,
+  sum_topup_raw DECIMAL(65,0) NOT NULL DEFAULT 0,
+  sum_interest_raw DECIMAL(65,0) NOT NULL DEFAULT 0,
+  gas_eth DECIMAL(38,18) NOT NULL DEFAULT 0,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (day)
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------------
+-- Pré-agrégation page Wallets — rempli par build_wallet_metrics.mjs
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS wallet_peer_daily (
+  day DATE NOT NULL,
+  peer_addr CHAR(42) NOT NULL,
+  n_in BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  n_out BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  sum_in_raw DECIMAL(65,0) NOT NULL DEFAULT 0,
+  sum_out_raw DECIMAL(65,0) NOT NULL DEFAULT 0,
+  n_total BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  sum_payment_raw DECIMAL(65,0) NOT NULL DEFAULT 0,
+  sum_topup_raw DECIMAL(65,0) NOT NULL DEFAULT 0,
+  first_ts DATETIME NOT NULL,
+  last_ts DATETIME NOT NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (day, peer_addr),
+  KEY idx_wpd_day (day)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS wallet_holding_daily (
+  day DATE NOT NULL,
+  wallet CHAR(42) NOT NULL,
+  sum_payment_raw DECIMAL(65,0) NOT NULL DEFAULT 0,
+  sum_topup_raw DECIMAL(65,0) NOT NULL DEFAULT 0,
+  n_payment BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  n_topup BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  first_ts DATETIME DEFAULT NULL,
+  last_ts DATETIME DEFAULT NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (day, wallet),
+  KEY idx_whd_day (day)
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------------
+-- Qualité de classification (page Quality) — rempli par build_daily_metrics.mjs
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS classification_daily (
+  day DATE NOT NULL,
+  event_type ENUM('interest', 'payment', 'top_up', 'unknown') NOT NULL,
+  n BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  n_paired BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (day, event_type),
+  KEY idx_cd_day (day)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS classification_confidence_daily (
+  day DATE NOT NULL,
+  bucket VARCHAR(16) NOT NULL,
+  n BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (day, bucket),
+  KEY idx_ccd_day (day)
+) ENGINE=InnoDB;
+
 SET FOREIGN_KEY_CHECKS = 1;

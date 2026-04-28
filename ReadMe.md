@@ -1,76 +1,79 @@
-# Ingestion des transferts (chaîne → MySQL)
+# Deblock Vault — ingestion chaîne → MySQL & dashboard
 
-## Pipeline
+Démo / prod interne : [dashboard](https://deblock-vault.rb-rubydev.fr/dashboard/)
 
-Disponible =>
-https://deblock-vault.rb-rubydev.fr/dashboard/
+## Schéma base de données
 
-1. **`npm run sync`** (`worker/sync.mjs`)  lit le `.env` à la **racine** du projet.
-   - Requête les logs `Transfer` du **`TOKEN_CONTRACT`** où **`NODE_ADDRESS`** est `from` ou `to`.
-   - Écrit **`raw_transfers`** (`tx_hash`, `log_index`, `block_number`, `block_time`, `from_addr`, `to_addr`, **`amount_raw`**, `direction` in/out).
-   - Enregistre le **coût total ETH par transaction** dans **`tx_gas`** : une seule ligne par `tx_hash` ; si une tx contient **plusieurs** logs `Transfer` concernant le noeud, le receipt n’est récupéré **qu’une fois** (`ensureTxGas` → `INSERT IGNORE`, clé primaire `tx_hash`). Le montant inclut `gasUsed × effectiveGasPrice` et, si présent sur le receipt, **le coût blob** (EIP-4844).
-2. **`npm run classify`** (`worker/classify.mjs`) heuristique métier v1 → **`classified_events`** (voir commentaires en tête de `classify.mjs`).
-3. **`npm run pipeline`**  enchaîne sync puis classify.
+Un seul script d’initialisation : **`sql/schema.sql`**.
+
+- Tables **opérationnelles** : `sync_state`, `raw_transfers`, `tx_gas`, `classified_events`, `wallet_estimates` (optionnel).
+- Tables **tampon / métriques** (pré-calculées par des workers Node) :
+  - **`daily_metrics`** — agrégats par jour (flux, types d’événements, gas).
+  - **`classification_daily`** / **`classification_confidence_daily`** — volumes par type et par bucket de confiance (page **Quality**).
+  - **`wallet_peer_daily`** — par jour et par « peer » (contrepartie brute in/out + sommes payment/top_up).
+  - **`wallet_holding_daily`** — par jour et par wallet (`ce.counterparty`) pour payment/top_up.
+
+Importer le script dans la base (phpMyAdmin ou `mysql`), puis configurer **`.env`** à partir de **`.env.example`**.
+
+## Workers Node (`worker/`)
+
+Les commandes lisent le **`.env` à la racine** du projet.
+
+| Commande | Fichier | Rôle |
+|----------|---------|------|
+| `npm run sync` | `sync.mjs` | RPC : logs `Transfer` du **`TOKEN_CONTRACT`** où **`NODE_ADDRESS`** est `from` ou `to` → **`raw_transfers`** ; receipt → **`tx_gas`** (une ligne par `tx_hash`). |
+| `npm run classify` | `classify.mjs` | Heuristique métier → **`classified_events`** (intérêts, paiements, top-up, etc.). Voir en-tête du fichier et variables `PAIR_*`, `INTEREST_*`, `CLASSIFY_FULL_REBUILD` dans `.env.example`. |
+| `npm run pipeline` | — | Enchaîne `sync` puis `classify`. |
+| `npm run daily-metrics` | `build_daily_metrics.mjs` | Met à jour **`daily_metrics`**, **`classification_daily`**, **`classification_confidence_daily`** (incrémental par défaut ; voir `.env.example`). |
+| `npm run wallet-metrics` | `build_wallet_metrics.mjs` | Met à jour **`wallet_peer_daily`** et **`wallet_holding_daily`** (même logique incrémentale / `--full`). |
+
+**Ordre recommandé après des nouvelles données brutes ou un gros `classify` :**
+
+```bash
+npm run daily-metrics && npm run wallet-metrics
+```
+
+- **Incrémental** : par défaut, seuls les jours récents sont supprimés puis réagrégés (fenêtre = dernier jour en table moins `METRICS_INCREMENTAL_OVERLAP_DAYS`, voir `.env.example`). Le cron reste court si la base grossit.
+- **Rebuild complet** : `METRICS_FULL_REBUILD=1` ou argument `--full` sur les scripts Node (obligatoire après un `CLASSIFY_FULL_REBUILD` sur d’anciens blocs, sinon les agrégats d’histoire resteraient faux).
+
+Les pages PHP utilisent ces tables quand elles existent et sont **à jour** (dernier jour indexé ≥ dernier jour des transferts) ; sinon elles retombent sur des requêtes directes sur `raw_transfers` (plus lentes).
+
+## Pipeline résumé
+
+1. **Sync** : vérité on-chain dans `raw_transfers` ; pas de doublon grâce à `UNIQUE (tx_hash, log_index)` et **`INSERT IGNORE`** (relancer le sync est idempotent).
+2. **Classify** : une ligne `classified_events` par transfert classifié (règles versionnées, paires d’intérêts, etc.).
+3. **Métriques** : reconstruction périodique des tables d’agrégats pour alléger le dashboard.
+
+## Curseur de synchronisation (`sync_state`)
+
+- Clé `main` : **`last_block_scanned`** ; le prochain run commence à `last_block + 1`.
+- **`START_BLOCK`** : ne remonte le curseur que s’il est *en retard* par rapport à cette valeur (voir commentaires dans le README historique / `.env.example`).
+- **Backfill** : `UPDATE sync_state SET last_block_scanned = …` puis relancer `npm run sync`.
 
 ## `amount_raw`
 
-Valeur du `Transfer` en **plus petite unité** du jeton (`uint256` on-chain), stockée en **chaîne** en base pour éviter toute perte de précision. Avec **18 décimales**, `1` token = `1e18` dans ce champ. L’affichage « ≈ € » du dashboard est une **conversion d’affichage** (ex. jeton indexé euro), pas une donnée on-chain supplémentaire.
+Montant du `Transfer` en **plus petite unité** du jeton (`uint256`), stocké en **chaîne** pour éviter toute perte de précision. L’affichage « ≈ € » du dashboard est une **conversion d’affichage**, pas une donnée on-chain supplémentaire.
 
-## Variables d’environnement (résumé)
+## Gas ETH (`tx_gas`)
 
-| Variable | Rôle |
-|----------|------|
-| `RPC_URL` | URL HTTPS du nœud (obligatoire). |
-| `RPC_URL_FALLBACK` | Optionnel : bascule si 429 / limite. |
-| `RPC_429_MAX_ATTEMPTS`, `RPC_429_BASE_MS` | Optionnel : retries sur throttling (`sync.mjs`). |
-| `TOKEN_CONTRACT` | Contrat ERC-20 surveillé. |
-| `NODE_ADDRESS` | Adresse du « noeud » (from/to des transferts à ingérer). |
-| `START_BLOCK` | Premier bloc **souhaité** pour une nouvelle installation (voir ci-dessous). |
-| `BLOCK_CHUNK` | Taille max de plage de blocs par appel `getLogs` (réduire si « too many results »). |
-| `CLASSIFY_FULL_REBUILD` | `true` : vide et recalcule toute la classification ; `false` : seulement les `raw_transfers` sans ligne `classified_events`. |
-| `PAIR_WINDOW_SECONDS`, `INTEREST_PAIR_MAX_RAW`, `INTEREST_PAIR_MAX_FEE_BPS` | Paramètres **classification** (pas l’ingestion RPC elle-même). |
+- **Une transaction = une ligne** : coût total de la tx (`gasUsed × effectiveGasPrice`, + blob si EIP-4844 côté worker).
+- Le dashboard joint ce coût aux lignes `raw_transfers` par `tx_hash` ; les **totaux** agrègent `tx_gas` une seule fois par transaction présente dans le périmètre filtré.
 
-Liste détaillée et valeurs d’exemple : **`.env.example`**.
+## Dashboard PHP (`dashboard/`)
 
-## Curseur de sync (`sync_state`)
+Interface découpée en **pages dédiées** (chargement différé des blocs lourds via endpoints `defer_*.php`) :
 
-La progression est stockée dans **`sync_state.last_block_scanned`** (clé `main`). Le prochain run scanne à partir de **`last_block_scanned + 1`**.
+- **`index.php`** — vue principale, KPIs, graphiques (Chart.js).
+- **`wallets.php`** — adresses actives, gros wallets, transferts récents (accéléré par `wallet_*_daily` + `daily_metrics` si disponibles).
+- **`flows.php`**, **`costs.php`**, **`quality.php`** — flux, coûts, qualité de classification.
+- **`concentration.php`** — concentration des holders, métriques type Gini / cohortes (calculs lifetime côté SQL).
 
-- **`START_BLOCK`** ne sert qu’à **relever** le curseur si celui-ci est **en retard** : si `last < START_BLOCK - 1`, il est positionné sur `START_BLOCK - 1`.  
-- **Baisser `START_BLOCK` ne refait pas scanner l’ancien historique** si `last_block_scanned` est déjà plus grand.
+Les filtres **dates** et **contrepartie** s’appliquent selon la page ; certaines métriques globales (ex. ordre de grandeur Vault) peuvent ignorer les dates pour refléter la vision « toute la période ingérée ».
 
-### Rattraper des blocs manquants (backfill)
+## Variables d’environnement
 
-1. Ajuster **`START_BLOCK`** si besoin dans le `.env`.
-2. Repositionner le curseur **manuellement** avant la zone à rescanner, par exemple :
+Résumé dans **`.env.example`** : RPC, MySQL, `TOKEN_CONTRACT`, `NODE_ADDRESS`, `START_BLOCK`, `BLOCK_CHUNK`, classification (`PAIR_WINDOW_SECONDS`, plafonds intérêt par taille de wallet, `CLASSIFY_FULL_REBUILD`, `RULE_VERSION`, etc.).
 
-   ```sql
-   UPDATE sync_state SET last_block_scanned = 21000000 WHERE key_name = 'main';
-   ```
+## Jeu de données / export
 
-   (utiliser le bloc **juste avant** la plage à ingérer, souvent `START_BLOCK - 1`.)
-
-3. Relancer **`npm run sync`** jusqu’à être à jour.
-
-### Anti-doublons
-
-Contrainte unique **`(tx_hash, log_index)`** sur `raw_transfers`. Les insertions utilisent **`INSERT IGNORE`** : relancer le sync est **idempotent** pour les mêmes logs.
-
-Après import de nouvelles lignes brutes, lancer **`npm run classify`** (incrémental ou `CLASSIFY_FULL_REBUILD=true` selon le besoin).
-
-### Gas ETH (`tx_gas`) pas de double comptage dans les totaux
-
-- **Une tx = une ligne `tx_gas`** : le coût affiché / agrégé est le **coût réel de la transaction entière** (payé une fois par l’émetteur), pas « par log ».
-- Dans le dashboard, la colonne **Gas** sur chaque ligne `raw_transfers` **répète** le même `cost_eth` pour toutes les lignes partageant le même `tx_hash` (c’est voulu : rappel du coût de la tx, pas une allocation au log).
-- L’agrégat **« Coûts période » (gas)** somme **`tx_gas.cost_eth`** pour les transactions qui ont **au moins** un transfert brut dans le périmètre filtré (`EXISTS` sur `raw_transfers`) : chaque tx n’entre **qu’une fois** dans la somme → **on ne multiplie pas** le gas par le nombre de logs.
-- **Sous-estimation possible** si des lignes `raw_transfers` existent **sans** ligne `tx_gas` (échec RPC sur `getTransactionReceipt`, sync interrompu au milieu d’un chunk, import partiel). Dans ce cas le total gas du dashboard peut être **trop bas**, pas « gonflé » par les doublons de logs.
-- **Perte d’information** : on ne stocke **pas** les transferts des txs qui n’ont **aucun** `Transfer` du token avec le noeud en `from`/`to` donc pas de `tx_gas` non plus pour ces txs, ce qui est cohérent : le périmètre du projet est les mouvements du noeud sur ce contrat, pas tout l’historique gas du réseau.
-
-Il y a peut-être une erreur dans le dashboard, car l'heuristique qui cherche les intérêts prélevés par Deblock sur le Vault ne semble pas tout à fait exacte
-
-est il y à encore un écart entre le vault (montant) detecter et le vault réel
-
-La bdd couvre du 08/03 au 29/03 environ (bloc 24615802 au bloc 24765709)
-
-BDD Lien 
-=> https://drive.google.com/file/d/1Gse3a6k1mUyLb_g-FL0UDYIrC_iYXku5/view?usp=sharing
+Pour une installation neuve, partir de **`sql/schema.sql`** + pipeline workers ci-dessus.
