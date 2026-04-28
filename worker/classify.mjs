@@ -23,6 +23,8 @@ const node = config.nodeAddress.toLowerCase();
 const RULE = config.ruleVersion;
 const WINDOW_MS = config.pairWindowSeconds * 1000;
 const PAIR_MAX = config.interestPairMaxRaw;
+const PAIR_MAX_LARGE = config.interestPairMaxRawLarge;
+const LARGE_WALLET_MIN_APPROX = config.interestLargeWalletMinApproxRaw;
 const MAX_FEE_BPS =
   Number.isFinite(config.interestPairMaxFeeBps) && config.interestPairMaxFeeBps > 0
     ? BigInt(Math.floor(config.interestPairMaxFeeBps))
@@ -119,6 +121,36 @@ function buildPeerTimeline(rows) {
 }
 
 /**
+ * Charge les wallets "gros" selon approx v1 (top_up - payment) depuis raw_transfers.
+ * On garde ce set pour appliquer un plafond de jambe différent.
+ * @returns {Promise<Set<string>>}
+ */
+async function loadLargeWalletSet() {
+  const pool = getPool();
+  const [rows] = await pool.query(
+    `SELECT
+       LOWER(CASE WHEN direction = 'in' THEN from_addr ELSE to_addr END) AS cp,
+       COALESCE(SUM(CASE WHEN direction = 'out' THEN CAST(amount_raw AS DECIMAL(65,0)) ELSE 0 END), 0) AS sum_out_raw,
+       COALESCE(SUM(CASE WHEN direction = 'in' THEN CAST(amount_raw AS DECIMAL(65,0)) ELSE 0 END), 0) AS sum_in_raw
+     FROM raw_transfers
+     GROUP BY LOWER(CASE WHEN direction = 'in' THEN from_addr ELSE to_addr END)`
+  );
+
+  const s = new Set();
+  for (const r of rows) {
+    const cp = String(r.cp || "").toLowerCase();
+    if (!cp) continue;
+    const outRaw = BigInt(String(r.sum_out_raw ?? "0"));
+    const inRaw = BigInt(String(r.sum_in_raw ?? "0"));
+    const approxRaw = outRaw - inRaw;
+    if (approxRaw >= LARGE_WALLET_MIN_APPROX) {
+      s.add(cp);
+    }
+  }
+  return s;
+}
+
+/**
  * Parmi les j non utilisés : même portefeuille A, direction opposée, schéma A↔noeud,
  * |t_j-t_i|<=WINDOW, minimise dt ; en cas d’égalité, plus petit indice j.
  */
@@ -164,7 +196,7 @@ async function loadTransfers() {
   return rows;
 }
 
-async function replaceClassifications(rows) {
+async function replaceClassifications(rows, largeWalletSet = new Set()) {
   const pool = getPool();
   const conn = await pool.getConnection();
   try {
@@ -216,6 +248,7 @@ async function replaceClassifications(rows) {
       const r = rows[i];
       const counterparty = peerWallet(r);
       const amt = BigInt(r.amount_raw);
+      const pairMaxForWallet = largeWalletSet.has(counterparty) ? PAIR_MAX_LARGE : PAIR_MAX;
 
       let bestJ = findBestPairIndex(i, rows, used, timeline);
 
@@ -223,7 +256,7 @@ async function replaceClassifications(rows) {
         const rj = rows[bestJ];
         const otherAmt = BigInt(rj.amount_raw);
         const maxLeg = amt > otherAmt ? amt : otherAmt;
-        if (maxLeg > PAIR_MAX) {
+        if (maxLeg > pairMaxForWallet) {
           bestJ = -1;
         } else if (MAX_FEE_BPS > 0n && maxLeg > 0n) {
           const diff = absDiff(r.amount_raw, rj.amount_raw);
@@ -280,11 +313,16 @@ async function replaceClassifications(rows) {
 
 try {
   const rows = await loadTransfers();
+  const largeWalletSet = await loadLargeWalletSet();
   console.log("Classify", rows.length, FULL_REBUILD ? "transferts en base" : "transferts non classés", {
     fullRebuild: FULL_REBUILD,
     rule: RULE,
+    largeWalletThresholdRaw: LARGE_WALLET_MIN_APPROX.toString(),
+    pairMaxRawStandard: PAIR_MAX.toString(),
+    pairMaxRawLarge: PAIR_MAX_LARGE.toString(),
+    largeWalletCount: largeWalletSet.size,
   });
-  await replaceClassifications(rows);
+  await replaceClassifications(rows, largeWalletSet);
   console.log("Classification terminée", { rule: RULE, fullRebuild: FULL_REBUILD });
 } finally {
   await closePool();

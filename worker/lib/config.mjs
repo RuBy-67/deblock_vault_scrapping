@@ -39,6 +39,13 @@ export const config = {
   /** Si une jambe de la paire IN/OUT dépasse ce montant (wei), pas de paire « interest » → payment / top_up. */
   interestPairMaxRaw: BigInt(req("INTEREST_PAIR_MAX_RAW", "50000000000000000000")),
   /**
+   * Garde-fou gros wallets :
+   * - si approx wallet (top_up - payment) >= INTEREST_LARGE_WALLET_MIN_APPROX_RAW
+   * - alors on utilise ce plafond par jambe (sinon interestPairMaxRaw standard).
+   */
+  interestPairMaxRawLarge: BigInt(req("INTEREST_PAIR_MAX_RAW_LARGE", req("INTEREST_PAIR_MAX_RAW", "50000000000000000000"))),
+  interestLargeWalletMinApproxRaw: BigInt(req("INTEREST_LARGE_WALLET_MIN_APPROX_RAW", "100000000000000000000000")),
+  /**
    * Optionnel : écart relatif max |a−b| / max(a,b) en bps (100 = 1 %). 0 = désactivé (défaut).
    * La règle fiable v1 reste A→noeud + noeud→A dans PAIR_WINDOW ; ce filtre resserre si tu veux des montants quasi égaux.
    */
