@@ -3,15 +3,28 @@
 declare(strict_types=1);
 
 require __DIR__ . '/config.php';
+require __DIR__ . '/db.php';
 
 $root = dirname(__DIR__);
 $cfg = monitor_load_env($root);
+$minDateFrom = '2026-03-08';
+try {
+    $pdo = monitor_pdo($cfg);
+    $stMinDate = $pdo->query("SELECT DATE(MIN(block_time)) AS min_day FROM raw_transfers");
+    $minRow = $stMinDate ? ($stMinDate->fetch() ?: []) : [];
+    $minDb = (string) ($minRow['min_day'] ?? '');
+    if ($minDb !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $minDb)) {
+        $minDateFrom = $minDb;
+    }
+} catch (Throwable $e) {
+    // Fallback silencieux : garde une date minimale statique si la DB n'est pas accessible.
+}
 
 $dateFrom = $_GET['date_from'] ?? '';
 $dateTo = $_GET['date_to'] ?? '';
 if ($dateFrom === '' || $dateTo === '') {
     $now = new DateTimeImmutable('now');
-    $dateFrom = $dateFrom !== '' ? $dateFrom : '2026-03-08';
+    $dateFrom = $dateFrom !== '' ? $dateFrom : $minDateFrom;
     $dateTo = $dateTo !== '' ? $dateTo : $now->format('Y-m-d');
 }
 $counterparty = isset($_GET['counterparty']) ? strtolower(trim((string) $_GET['counterparty'])) : '';

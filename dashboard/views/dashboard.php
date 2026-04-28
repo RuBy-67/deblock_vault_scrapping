@@ -20,7 +20,9 @@ declare(strict_types=1);
 /** @var string $dashboardOgBase */
 /** @var string $dashboardOgPage */
 /** @var string $dashboardOgImage */
+/** @var string $minDateFrom */
 $isOverview = ($activePage === 'dashboard');
+$minDateFrom = isset($minDateFrom) && is_string($minDateFrom) ? $minDateFrom : '';
 $ogTitle = 'Monitoring noeud EURCV - SG -Techblock';
 $ogDescription = 'Tableau de bord : flux on-chain du noeud, volumes, classification v1 (payment / top_up / interest), graphiques et coûts (frais estimés, gas). Filtres par dates et par contrepartie.';
 ?>
@@ -61,7 +63,7 @@ $ogDescription = 'Tableau de bord : flux on-chain du noeud, volumes, classificat
   </header>
 
   <form class="filters" method="get">
-    <label>Du <input type="date" name="date_from" value="<?= htmlspecialchars($dateFrom) ?>"></label>
+    <label>Du <input type="date" name="date_from" value="<?= htmlspecialchars($dateFrom) ?>"<?= $minDateFrom !== '' ? ' min="' . htmlspecialchars($minDateFrom) . '"' : '' ?>></label>
     <label>Au <input type="date" name="date_to" value="<?= htmlspecialchars($dateTo) ?>"></label>
     <label class="filters__cp">Wallet (0x…)
       <span class="filters__cp-row">

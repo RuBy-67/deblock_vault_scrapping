@@ -84,6 +84,14 @@ try {
     if (($f['counterparty'] ?? '') === '' && monitor_daily_metrics_available($pdo)) {
         try {
             $merged = monitor_dashboard_collect_from_daily_metrics($pdo, $f);
+            $vaultGlobal = monitor_dashboard_collect_vault_global($pdo, $f);
+            $merged['vaultApproxBizRaw'] = $vaultGlobal['vaultApproxGlobalRaw'];
+            $payload = json_decode((string) ($merged['chartPayloadJson'] ?? '{}'), true);
+            if (is_array($payload)) {
+                $payload['vaultDaily'] = $vaultGlobal['chartVaultGlobalDaily'];
+                $payload['vaultDeltaDaily'] = $vaultGlobal['chartVaultGlobalDeltaDaily'];
+                $merged['chartPayloadJson'] = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS);
+            }
         } catch (Throwable $e) {
             $shell = monitor_dashboard_collect_shell($pdo, $f, $cfg);
             $vaultGlobal = monitor_dashboard_collect_vault_global($pdo, $f);
