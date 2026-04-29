@@ -82,96 +82,7 @@
     return d;
   }
 
-  /** Vrai tant qu’au moins une série encore tronquée (après fusion des patchs). */
-  function monitorPayloadHasCompactSeries(p) {
-    if (!p || !p._chartMeta || p._chartMeta.mode !== 'compact') return false;
-    var m = p._chartMeta;
-    if (m.originalDailyCount != null && Array.isArray(p.daily) && p.daily.length < m.originalDailyCount) {
-      return true;
-    }
-    if (
-      m.originalWeeklyCount != null &&
-      Array.isArray(p.weeklyPay) &&
-      p.weeklyPay.length < m.originalWeeklyCount
-    ) {
-      return true;
-    }
-    return false;
-  }
-
-  function monitorExpandNeedsFetch(expandGroup) {
-    var s = document.getElementById('monitor-chart-payload');
-    if (!s) return false;
-    var payload;
-    try {
-      payload = JSON.parse(s.textContent);
-    } catch (e) {
-      return false;
-    }
-    var m = payload._chartMeta;
-    if (!m || m.mode !== 'compact') return false;
-    if (expandGroup === 'daily') {
-      if (m.originalDailyCount != null && Array.isArray(payload.daily)) {
-        return payload.daily.length < m.originalDailyCount;
-      }
-      return true;
-    }
-    if (expandGroup === 'weekly') {
-      if (m.originalWeeklyCount != null && Array.isArray(payload.weeklyPay)) {
-        return payload.weeklyPay.length < m.originalWeeklyCount;
-      }
-      return true;
-    }
-    return false;
-  }
-
-  var monitorChartPatchPromises = {};
-
-  /** Charge uniquement le bloc séries nécessaire (daily = toutes séries jour alignées ; weekly = weeklyPay). */
-  function monitorEnsureChartExpandPatch(expandGroup) {
-    if (!monitorExpandNeedsFetch(expandGroup)) {
-      return Promise.resolve();
-    }
-    if (monitorChartPatchPromises[expandGroup]) {
-      return monitorChartPatchPromises[expandGroup];
-    }
-    var endpoint = window.monitorDeferEndpoint || 'defer_dashboard.php';
-    var params = new URLSearchParams(window.location.search);
-    params.set('chart_payload', 'full');
-    params.set('defer_charts_only', '1');
-    params.set('chart_expand', expandGroup);
-    var url = endpoint + '?' + params.toString();
-    monitorChartPatchPromises[expandGroup] = fetch(url, {
-      credentials: 'same-origin',
-      headers: { Accept: 'application/json' },
-    })
-      .then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
-      })
-      .then(function (data) {
-        monitorChartPatchPromises[expandGroup] = null;
-        if (data.error) throw new Error(String(data.error));
-        var patch = data.chartPayloadPatch;
-        if (!patch || typeof patch !== 'object') {
-          throw new Error('Réponse agrandissement invalide');
-        }
-        var el = document.getElementById('monitor-chart-payload');
-        if (!el) return;
-        var payload = JSON.parse(el.textContent);
-        Object.assign(payload, patch);
-        el.textContent = JSON.stringify(payload);
-        window.monitorChartPayloadCompact = monitorPayloadHasCompactSeries(payload);
-        if (typeof window.monitorInitCharts === 'function') {
-          window.monitorInitCharts();
-        }
-      })
-      .catch(function (e) {
-        monitorChartPatchPromises[expandGroup] = null;
-        throw e;
-      });
-    return monitorChartPatchPromises[expandGroup];
-  }
+  // Mode full par défaut : aucun chargement réseau au clic "agrandir".
 
   function monitorOpenChartExpandModal(wrapEl) {
     var dlg = monitorEnsureExpandDialog();
@@ -223,39 +134,6 @@
       }
     }
 
-    var st0 = wrapEl && wrapEl._expandState;
-    var expandGroup = (st0 && st0.expandGroup) || 'daily';
-
-    if (monitorExpandNeedsFetch(expandGroup)) {
-      if (loadingEl) {
-        loadingEl.hidden = false;
-        loadingEl.textContent = 'Chargement des données complètes…';
-      }
-      var th0 = dlg.querySelector('.monitor-chart-expand__title');
-      if (th0) th0.textContent = 'Chargement…';
-      if (!dlg.open) {
-        dlg.showModal();
-      }
-      monitorEnsureChartExpandPatch(expandGroup)
-        .then(function () {
-          buildChartInModal(true);
-        })
-        .catch(function (err) {
-          console.error(err);
-          if (loadingEl) loadingEl.hidden = true;
-          try {
-            dlg.close();
-          } catch (e2) {
-            /* ignore */
-          }
-          if (typeof window.alert === 'function') {
-            alert(
-              'Impossible de charger les données complètes du graphique. Réessayez ou vérifiez la connexion.'
-            );
-          }
-        });
-      return;
-    }
     buildChartInModal(false);
   }
 
@@ -263,19 +141,14 @@
    * @param {HTMLElement} wrapEl parent .chart-canvas-wrap du canvas
    * @param {string} title titre du modal
    * @param {function(number|null): object} makeCfg nLast = 6 (aperçu) ou null (plein)
-   * @param {string} [expandGroup] « daily » (défaut) ou « weekly » — détermine le patch réseau à fusionner
    */
-  function monitorBindChartExpand(wrapEl, title, makeCfg, expandGroup) {
+  function monitorBindChartExpand(wrapEl, title, makeCfg) {
     if (!wrapEl || typeof makeCfg !== 'function') return;
     wrapEl.classList.add('chart-canvas-wrap--expandable');
     wrapEl.setAttribute('role', 'button');
     wrapEl.setAttribute('tabindex', '0');
     wrapEl.setAttribute('aria-label', title + ' — aperçu. Cliquer ou Entrée pour agrandir.');
-    wrapEl._expandState = {
-      make: makeCfg,
-      title: title,
-      expandGroup: expandGroup || 'daily',
-    };
+    wrapEl._expandState = { make: makeCfg, title: title };
     if (wrapEl._expandListenersBound) return;
     wrapEl._expandListenersBound = true;
     wrapEl.addEventListener('click', function () {
@@ -495,7 +368,6 @@
       weeklyBarStroke: g('--chart-weekly-bar-stroke', '#1e3f73'),
       weeklyLineAccount: g('--chart-weekly-line-account', '#6d28d9'),
       weeklyActivityCp: g('--chart-weekly-line-activity-cp', '#ca8a04'),
-      weeklyActivityTx: g('--chart-weekly-line-activity-tx', '#64748b'),
     };
   }
 
@@ -578,7 +450,7 @@
       return;
     }
 
-    window.monitorChartPayloadCompact = monitorPayloadHasCompactSeries(payload);
+    window.monitorChartPayloadCompact = !!(payload._chartMeta && payload._chartMeta.mode === 'compact');
 
     var daily = payload.daily || [];
     var dailyClass = payload.dailyClass || [];
@@ -1425,8 +1297,7 @@
           monitorBindChartExpand(
             wrapW,
             'Paiements : volume par semaine + moy. € / compte',
-            makeWeeklyVolumeCfg,
-            'weekly'
+            makeWeeklyVolumeCfg
           );
         }
       }
@@ -1455,19 +1326,6 @@
                 pointRadius: 3,
                 tension: 0.12,
                 order: 2,
-              },
-              {
-                label: 'Lignes payment (tx)',
-                data: W.map(function (w) {
-                  return w.nPay != null ? w.nPay : 0;
-                }),
-                borderColor: pal.weeklyActivityTx,
-                backgroundColor: 'transparent',
-                borderWidth: 2,
-                borderDash: [4, 3],
-                pointRadius: 2,
-                tension: 0.12,
-                order: 1,
               },
             ],
           },
@@ -1510,9 +1368,8 @@
         if (wrapActW) {
           monitorBindChartExpand(
             wrapActW,
-            'Paiements : activité par semaine (comptes & tx)',
-            makeWeeklyActivityCfg,
-            'weekly'
+            'Paiements : activité par semaine (comptes distincts)',
+            makeWeeklyActivityCfg
           );
         }
       }

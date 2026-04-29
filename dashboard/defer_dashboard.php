@@ -28,11 +28,11 @@ $vaultToleranceEur = isset($_GET['vault_tolerance_eur']) ? trim((string) $_GET['
 $vaultTargetEur = preg_match('/^\d+([.,]\d+)?$/', str_replace(',', '.', $vaultTargetEur)) ? $vaultTargetEur : '';
 $vaultToleranceEur = preg_match('/^\d+([.,]\d+)?$/', str_replace(',', '.', $vaultToleranceEur)) ? $vaultToleranceEur : '';
 
-// Graphiques : compact = JSON séries tronquées (léger) ; full = séries complètes.
+// Graphiques : full par défaut (modals directement fonctionnels), compact uniquement si demandé explicitement.
 // Agrandissement : defer_charts_only=1&chart_expand=daily|weekly renvoie seulement chartPayloadPatch (séries alignées jour ou hebdo), fusion côté client.
-$chartPayloadMode = isset($_GET['chart_payload']) ? strtolower(trim((string) $_GET['chart_payload'])) : 'compact';
+$chartPayloadMode = isset($_GET['chart_payload']) ? strtolower(trim((string) $_GET['chart_payload'])) : 'full';
 if (!in_array($chartPayloadMode, ['compact', 'full'], true)) {
-    $chartPayloadMode = 'compact';
+    $chartPayloadMode = 'full';
 }
 $deferChartsOnly = isset($_GET['defer_charts_only']) && (string) $_GET['defer_charts_only'] === '1';
 $chartExpand = isset($_GET['chart_expand']) ? strtolower(trim((string) $_GET['chart_expand'])) : '';

@@ -162,8 +162,8 @@ if ($amountSearchActive) : ?>
           </div>
         </div>
         <div class="chart-grid__item">
-          <h4 class="chart-subtitle" style="margin-top:0">Activité <code>payment</code> (comptes &amp; lignes)</h4>
-          <p class="muted chart-caption" style="margin-top:-0.25rem">Courbes sur une seule échelle (nombres entiers). Ambre = comptes distincts ; gris pointillé = nombre de lignes classées <code>payment</code>.</p>
+          <h4 class="chart-subtitle" style="margin-top:0">Activité <code>payment</code> (comptes distincts)</h4>
+          <p class="muted chart-caption" style="margin-top:-0.25rem">Courbe sur une seule échelle (nombres entiers). Ambre = comptes distincts ayant effectué au moins un <code>payment</code> dans la semaine.</p>
           <div class="chart-canvas-wrap chart-canvas-wrap--expandable-host">
             <canvas id="chartPaymentWeeklyActivity" aria-label="Activité payment par semaine"></canvas>
           </div>
