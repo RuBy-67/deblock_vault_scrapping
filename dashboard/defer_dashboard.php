@@ -13,11 +13,6 @@ $cfg = monitor_load_env($root);
 
 $dateFrom = $_GET['date_from'] ?? '';
 $dateTo = $_GET['date_to'] ?? '';
-if ($dateFrom === '' || $dateTo === '') {
-    $now = new DateTimeImmutable('now');
-    $dateFrom = $dateFrom !== '' ? $dateFrom : $now->modify('first day of this month')->format('Y-m-d');
-    $dateTo = $dateTo !== '' ? $dateTo : $now->format('Y-m-d');
-}
 $counterparty = isset($_GET['counterparty']) ? strtolower(trim((string) $_GET['counterparty'])) : '';
 if ($counterparty !== '' && !preg_match('/^0x[a-f0-9]{40}$/', $counterparty)) {
     $counterparty = '';
@@ -47,6 +42,27 @@ try {
 }
 
 try {
+    // Alignement avec `dashboard/index.php` :
+    // - si `date_from/date_to` absents, on utilise la date minimale réellement indexée dans raw_transfers
+    //   (au lieu du "1er jour du mois"), sinon les données différées et l'UI ne correspondent pas.
+    if ($dateFrom === '' || $dateTo === '') {
+        $minDateFrom = '2026-02-17';
+        try {
+            $stMinDate = $pdo->query("SELECT DATE(MIN(block_time)) AS min_day FROM raw_transfers");
+            $minRow = $stMinDate ? ($stMinDate->fetch() ?: []) : [];
+            $minDb = (string) ($minRow['min_day'] ?? '');
+            if ($minDb !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $minDb)) {
+                $minDateFrom = $minDb;
+            }
+        } catch (Throwable $e) {
+            // Fallback silencieux
+        }
+
+        $now = new DateTimeImmutable('now');
+        $dateFrom = $dateFrom !== '' ? $dateFrom : $minDateFrom;
+        $dateTo = $dateTo !== '' ? $dateTo : $now->format('Y-m-d');
+    }
+
     $f = monitor_dashboard_filter_parts($dateFrom, $dateTo, $counterparty);
 
     $amountSearchMode = ($counterparty === '' && $vaultTargetEur !== '');
