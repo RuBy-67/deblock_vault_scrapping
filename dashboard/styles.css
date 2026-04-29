@@ -568,6 +568,10 @@ html[data-theme="dark"] .muted.wallet-team-badge {
   line-height: 1.45;
 }
 
+html[data-theme="dark"] .chart-panel strong {
+  color: #01d4ba;
+}
+
 /** Grille responsive : 1 → 2 → 3 colonnes ; le modal reste pleine largeur au clic. */
 .chart-grid {
   display: grid;
