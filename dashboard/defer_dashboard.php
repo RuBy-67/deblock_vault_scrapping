@@ -29,12 +29,14 @@ $vaultTargetEur = preg_match('/^\d+([.,]\d+)?$/', str_replace(',', '.', $vaultTa
 $vaultToleranceEur = preg_match('/^\d+([.,]\d+)?$/', str_replace(',', '.', $vaultToleranceEur)) ? $vaultToleranceEur : '';
 
 // Graphiques : compact = JSON séries tronquées (léger) ; full = séries complètes.
-// Au 1er « agrandir » le front appelle chart_payload=full&defer_charts_only=1 (HTML cartes ignoré) — une réponse sert tous les graphiques.
+// Agrandissement : defer_charts_only=1&chart_expand=daily|weekly renvoie seulement chartPayloadPatch (séries alignées jour ou hebdo), fusion côté client.
 $chartPayloadMode = isset($_GET['chart_payload']) ? strtolower(trim((string) $_GET['chart_payload'])) : 'compact';
 if (!in_array($chartPayloadMode, ['compact', 'full'], true)) {
     $chartPayloadMode = 'compact';
 }
 $deferChartsOnly = isset($_GET['defer_charts_only']) && (string) $_GET['defer_charts_only'] === '1';
+$chartExpand = isset($_GET['chart_expand']) ? strtolower(trim((string) $_GET['chart_expand'])) : '';
+$chartExpandAllowed = ['daily', 'weekly'];
 
 try {
     $pdo = monitor_pdo($cfg);
@@ -135,11 +137,22 @@ try {
         $merged = array_merge($shell, $heavy);
     }
 
-    if ($chartPayloadMode === 'compact' && ($merged['chartPayloadJson'] ?? '') !== '') {
-        $merged['chartPayloadJson'] = monitor_dashboard_compact_chart_payload_json((string) $merged['chartPayloadJson']);
+    $chartPayloadJsonFull = (string) ($merged['chartPayloadJson'] ?? '{}');
+
+    if ($chartPayloadMode === 'compact' && $chartPayloadJsonFull !== '') {
+        $merged['chartPayloadJson'] = monitor_dashboard_compact_chart_payload_json($chartPayloadJsonFull);
     }
 
     if ($deferChartsOnly) {
+        if ($chartExpand !== '' && in_array($chartExpand, $chartExpandAllowed, true)) {
+            $patch = monitor_dashboard_chart_expand_patch($chartPayloadJsonFull, $chartExpand);
+            echo json_encode([
+                'chartPayloadPatch' => $patch,
+                'chartExpand' => $chartExpand,
+            ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS);
+            exit;
+        }
+
         $dec = json_decode((string) ($merged['chartPayloadJson'] ?? '{}'), true);
         $initChartsOnly = is_array($dec)
             && (

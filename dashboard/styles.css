@@ -725,8 +725,17 @@ html[data-theme="dark"] .muted.wallet-team-badge {
   border-radius: 12px;
   background: var(--surface);
   color: var(--text);
-  max-width: min(1120px, 96vw);
-  width: 100%;
+  width: min(1100px, calc(100vw - 2rem));
+  max-width: min(1100px, calc(100vw - 2rem));
+  max-height: min(92vh, 900px);
+  box-sizing: border-box;
+  overflow: hidden;
+  margin: auto;
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  outline: none;
 }
 
 .monitor-chart-expand::backdrop {
@@ -740,7 +749,39 @@ html[data-theme='dark'] .monitor-chart-expand::backdrop {
 .monitor-chart-expand__shell {
   display: flex;
   flex-direction: column;
-  max-height: 92vh;
+  max-height: inherit;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.monitor-chart-expand__chart-zone {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.monitor-chart-expand__loading {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1rem 1.25rem;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.monitor-chart-expand__loading[hidden] {
+  display: none !important;
 }
 
 .monitor-chart-expand__header {
@@ -779,14 +820,25 @@ html[data-theme='dark'] .monitor-chart-expand::backdrop {
 .monitor-chart-expand__scroll {
   flex: 1;
   min-height: 0;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
   overflow-x: auto;
   overflow-y: hidden;
   padding: 0.5rem 0.75rem 0.85rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.monitor-chart-expand .chart-scroll.chart-scroll--with-sticky-legend {
+  max-width: 100%;
 }
 
 .chart-modal-canvas-wrap {
-  height: min(68vh, 620px);
+  height: min(62vh, 540px);
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .chart-canvas-wrap--short {

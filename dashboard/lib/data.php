@@ -34,6 +34,9 @@ function monitor_dashboard_compact_chart_payload_json(string $chartPayloadJson):
         'paymentAvgDaily', 'vaultDaily', 'vaultDeltaDaily', 'gasDaily',
     ];
 
+    $originalDailyCount = !empty($payload['daily']) && is_array($payload['daily']) ? count($payload['daily']) : 0;
+    $originalWeeklyCount = isset($payload['weeklyPay']) && is_array($payload['weeklyPay']) ? count($payload['weeklyPay']) : 0;
+
     if (!empty($payload['daily']) && is_array($payload['daily'])) {
         $n = count($payload['daily']);
         if ($n > $dailyTail) {
@@ -54,9 +57,46 @@ function monitor_dashboard_compact_chart_payload_json(string $chartPayloadJson):
         'mode' => 'compact',
         'dailyTail' => $dailyTail,
         'weeklyTail' => $weeklyTail,
+        'originalDailyCount' => $originalDailyCount,
+        'originalWeeklyCount' => $originalWeeklyCount,
     ];
 
     return json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS);
+}
+
+/**
+ * Extrait du payload graphiques complet les clés nécessaires pour un agrandissement ciblé (réseau).
+ *
+ * @param string $expandGroup « daily » : toutes les séries alignées sur les jours ; « weekly » : weeklyPay seul.
+ *
+ * @return array<string, mixed>
+ */
+function monitor_dashboard_chart_expand_patch(string $fullChartPayloadJson, string $expandGroup): array
+{
+    $payload = json_decode($fullChartPayloadJson, true);
+    if (!is_array($payload)) {
+        return [];
+    }
+
+    $keysDailyAligned = [
+        'daily', 'dailyClass', 'interestDaily', 'nodeVolumeDaily',
+        'paymentAvgDaily', 'vaultDaily', 'vaultDeltaDaily', 'gasDaily',
+    ];
+
+    $out = [];
+    if ($expandGroup === 'daily') {
+        foreach ($keysDailyAligned as $k) {
+            if (isset($payload[$k]) && is_array($payload[$k])) {
+                $out[$k] = $payload[$k];
+            }
+        }
+    } elseif ($expandGroup === 'weekly') {
+        if (isset($payload['weeklyPay']) && is_array($payload['weeklyPay'])) {
+            $out['weeklyPay'] = $payload['weeklyPay'];
+        }
+    }
+
+    return $out;
 }
 
 /**
