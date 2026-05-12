@@ -91,7 +91,7 @@ function isRoundTripSameWallet(r, rj) {
 }
 
 function timeMs(r) {
-  return new Date(r.block_time).getTime();
+  return Number(r.block_time_ms ?? 0);
 }
 
 /**
@@ -172,7 +172,7 @@ function pairMaxForApprox(approxRaw) {
   if (approxRaw >= TIER_500K) return LEG_MAX_50;
   if (approxRaw >= TIER_200K) return LEG_MAX_30;
   if (approxRaw >= TIER_100K) return LEG_MAX_20;
-  if (approxRaw >= TIER_40K) return LEG_MAX_10;
+  if (approxRaw >= TIER_40K) return LEG_MAX_40;
   if (approxRaw >= TIER_30K) return LEG_MAX_30;
   if (approxRaw >= TIER_20K) return LEG_MAX_20;
   if (approxRaw >= TIER_10K) return LEG_MAX_10;
@@ -223,10 +223,12 @@ function findBestPairIndex(i, rows, used, timeline) {
 async function loadTransfers() {
   const pool = getPool();
   const sql = FULL_REBUILD
-    ? `SELECT id, block_time, from_addr, to_addr, amount_raw, direction
+    ? `SELECT id, block_time, from_addr, to_addr, amount_raw, direction,
+              CAST(UNIX_TIMESTAMP(block_time) * 1000 AS UNSIGNED) AS block_time_ms
        FROM raw_transfers
        ORDER BY block_time ASC, id ASC`
-    : `SELECT rt.id, rt.block_time, rt.from_addr, rt.to_addr, rt.amount_raw, rt.direction
+    : `SELECT rt.id, rt.block_time, rt.from_addr, rt.to_addr, rt.amount_raw, rt.direction,
+              CAST(UNIX_TIMESTAMP(rt.block_time) * 1000 AS UNSIGNED) AS block_time_ms
        FROM raw_transfers rt
        LEFT JOIN classified_events ce ON ce.raw_transfer_id = rt.id
        WHERE ce.raw_transfer_id IS NULL
@@ -265,7 +267,28 @@ async function replaceClassifications(rows, walletApproxMap = new Map()) {
     const interestLastPairedAt = new Map();
 
     /** @type {any[][]} */
-    const inserts = [];
+    let insertBuffer = [];
+    let totalInserted = 0;
+    let insertBatchNo = 0;
+
+    async function flushInsertBuffer() {
+      if (insertBuffer.length === 0) return;
+      insertBatchNo += 1;
+      const chunk = insertBuffer;
+      insertBuffer = [];
+      await conn.query(
+        `INSERT INTO classified_events
+         (raw_transfer_id, counterparty, event_type, paired_transfer_id, fee_token_raw, rule_version, confidence)
+         VALUES ?`,
+        [chunk]
+      );
+      totalInserted += chunk.length;
+      if (insertBatchNo % 20 === 0) {
+        console.log(
+          `Classify: insert batch ${String(insertBatchNo).padStart(4, " ")} (${totalInserted.toLocaleString("fr-FR")} lignes)`
+        );
+      }
+    }
 
     const timeline = buildPeerTimeline(rows);
 
@@ -320,15 +343,19 @@ async function replaceClassifications(rows, walletApproxMap = new Map()) {
       if (bestJ >= 0) {
         const rj = rows[bestJ];
         const fee = String(absDiff(r.amount_raw, rj.amount_raw));
-        inserts.push([r.id, counterparty, "interest", rj.id, fee, RULE, 85]);
-        inserts.push([rj.id, counterparty, "interest", r.id, fee, RULE, 85]);
+        insertBuffer.push([r.id, counterparty, "interest", rj.id, fee, RULE, 85]);
+        insertBuffer.push([rj.id, counterparty, "interest", r.id, fee, RULE, 85]);
         interestLastPairedAt.set(counterparty, Math.max(timeMs(r), timeMs(rj)));
         used.add(i);
         used.add(bestJ);
       } else {
         const typ = r.direction === "in" ? "payment" : "top_up";
-        inserts.push([r.id, counterparty, typ, null, null, RULE, 60]);
+        insertBuffer.push([r.id, counterparty, typ, null, null, RULE, 60]);
         used.add(i);
+      }
+
+      if (insertBuffer.length >= INSERT_BATCH_SIZE) {
+        await flushInsertBuffer();
       }
     }
 
@@ -340,31 +367,17 @@ async function replaceClassifications(rows, walletApproxMap = new Map()) {
       "s"
     );
 
-    if (inserts.length) {
+    if (insertBuffer.length > 0) {
+      await flushInsertBuffer();
+    }
+    if (totalInserted > 0) {
       console.log(
-        "Classify: insertion",
-        inserts.length.toLocaleString("fr-FR"),
-        "ligne(s) dans classified_events… (batch",
+        "Classify: insertion terminée",
+        totalInserted.toLocaleString("fr-FR"),
+        "ligne(s) (batch",
         INSERT_BATCH_SIZE.toLocaleString("fr-FR"),
         ")"
       );
-      const totalBatches = Math.ceil(inserts.length / INSERT_BATCH_SIZE);
-      for (let b = 0; b < totalBatches; b++) {
-        const start = b * INSERT_BATCH_SIZE;
-        const end = Math.min(inserts.length, start + INSERT_BATCH_SIZE);
-        const chunk = inserts.slice(start, end);
-        await conn.query(
-          `INSERT INTO classified_events
-           (raw_transfer_id, counterparty, event_type, paired_transfer_id, fee_token_raw, rule_version, confidence)
-           VALUES ?`,
-          [chunk]
-        );
-        if ((b + 1) % 20 === 0 || b + 1 === totalBatches) {
-          console.log(
-            `Classify: insert batch ${String(b + 1).padStart(4, " ")}/${totalBatches} (${end.toLocaleString("fr-FR")} lignes)`
-          );
-        }
-      }
     }
 
     await conn.commit();
@@ -392,7 +405,7 @@ try {
       gte10k: LEG_MAX_10.toString(),
       gte20k: LEG_MAX_20.toString(),
       gte30k: LEG_MAX_30.toString(),
-      gte40k: LEG_MAX_10.toString(),
+      gte40k: LEG_MAX_40.toString(),
       gte100k: LEG_MAX_20.toString(),
       gte200k: LEG_MAX_30.toString(),
       gte500k: LEG_MAX_50.toString(),
