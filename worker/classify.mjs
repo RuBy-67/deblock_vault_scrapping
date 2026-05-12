@@ -23,7 +23,12 @@ assertConfig();
 const node = config.nodeAddress.toLowerCase();
 const RULE = config.ruleVersion;
 const WINDOW_MS = config.pairWindowSeconds * 1000;
-const INTEREST_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+const INTEREST_COOLDOWN_MS = Math.max(
+  0,
+  Number.isFinite(config.interestCooldownSeconds)
+    ? config.interestCooldownSeconds * 1000
+    : 0
+);
 const MIN_INTEREST_LEG_RAW = config.interestMinLegRaw;
 const MAX_FEE_BPS =
   Number.isFinite(config.interestPairMaxFeeBps) && config.interestPairMaxFeeBps > 0

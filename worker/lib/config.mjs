@@ -38,6 +38,8 @@ export const config = {
   pairWindowSeconds: Number(req("PAIR_WINDOW_SECONDS", "300")),
   /** Jambe minimale pour considérer une paire interest (ex: 0.01 token -> 1e16). */
   interestMinLegRaw: BigInt(req("INTEREST_MIN_LEG_RAW", "10000000000000000")),
+  /** Cooldown entre deux paires interest d'un même wallet (0 = désactivé). */
+  interestCooldownSeconds: Number(req("INTEREST_COOLDOWN_SECONDS", "43200")),
   /** Si une jambe de la paire IN/OUT dépasse ce montant (wei), pas de paire « interest » → payment / top_up. */
   interestPairMaxRaw: BigInt(req("INTEREST_PAIR_MAX_RAW", "50000000000000000000")),
   /**
