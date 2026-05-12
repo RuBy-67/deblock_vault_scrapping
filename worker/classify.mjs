@@ -5,7 +5,7 @@
  * - Interest uniquement si aller-retour strict même portefeuille A : IN = A→noeud, OUT = noeud→A
  *   (même adresse A en from du IN et en to du OUT, noeud en to du IN et from du OUT),
  *   dans PAIR_WINDOW_SECONDS, avec plafond progressif par "taille wallet" (approx v1),
- *   et max 1 paire interest par wallet/jour,
+ *   et max 1 paire interest par wallet sur 24h glissantes,
  *   et si INTEREST_PAIR_MAX_FEE_BPS > 0 : |a−b|/max(a,b) <= ce ratio (sinon pas de limite sur l’écart)
  *   → interest + fee (confidence 85) pour les deux jambes.
  * - Sinon IN → payment ; OUT → top_up (confidence 60).
@@ -23,6 +23,8 @@ assertConfig();
 const node = config.nodeAddress.toLowerCase();
 const RULE = config.ruleVersion;
 const WINDOW_MS = config.pairWindowSeconds * 1000;
+const INTEREST_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+const MIN_INTEREST_LEG_RAW = config.interestMinLegRaw;
 const MAX_FEE_BPS =
   Number.isFinite(config.interestPairMaxFeeBps) && config.interestPairMaxFeeBps > 0
     ? BigInt(Math.floor(config.interestPairMaxFeeBps))
@@ -90,10 +92,6 @@ function isRoundTripSameWallet(r, rj) {
 
 function timeMs(r) {
   return new Date(r.block_time).getTime();
-}
-
-function dayKey(r) {
-  return String(r.block_time || "").slice(0, 10);
 }
 
 /**
@@ -184,7 +182,7 @@ function pairMaxForApprox(approxRaw) {
 
 /**
  * Parmi les j non utilisés : même portefeuille A, direction opposée, schéma A↔noeud,
- * |t_j-t_i|<=WINDOW, minimise dt ; en cas d’égalité, plus petit indice j.
+ * |t_j-t_i|<=WINDOW, minimise d'abord l'écart de montant ; puis dt ; puis indice.
  */
 function findBestPairIndex(i, rows, used, timeline) {
   const r = rows[i];
@@ -197,15 +195,24 @@ function findBestPairIndex(i, rows, used, timeline) {
   const hi = upperBoundExclusiveTime(entries, tI + WINDOW_MS);
 
   let bestJ = -1;
+  let bestAmtDiff = -1n;
   let bestDt = Infinity;
+  const amt = BigInt(r.amount_raw);
   for (let k = lo; k < hi; k++) {
     const e = entries[k];
     if (e.idx === i || used.has(e.idx)) continue;
     const rj = rows[e.idx];
     if (rj.direction === r.direction) continue;
     if (!isRoundTripSameWallet(r, rj)) continue;
+    const amtDiff = absDiff(amt, rj.amount_raw);
     const dt = Math.abs(e.t - tI);
-    if (dt < bestDt || (dt === bestDt && (bestJ < 0 || e.idx < bestJ))) {
+    if (
+      bestJ < 0 ||
+      amtDiff < bestAmtDiff ||
+      (amtDiff === bestAmtDiff && dt < bestDt) ||
+      (amtDiff === bestAmtDiff && dt === bestDt && e.idx < bestJ)
+    ) {
+      bestAmtDiff = amtDiff;
       bestDt = dt;
       bestJ = e.idx;
     }
@@ -255,7 +262,7 @@ async function replaceClassifications(rows, walletApproxMap = new Map()) {
     }
 
     const used = new Set();
-    const interestDayUsed = new Set();
+    const interestLastPairedAt = new Map();
 
     /** @type {any[][]} */
     const inserts = [];
@@ -290,11 +297,17 @@ async function replaceClassifications(rows, walletApproxMap = new Map()) {
         const rj = rows[bestJ];
         const otherAmt = BigInt(rj.amount_raw);
         const maxLeg = amt > otherAmt ? amt : otherAmt;
+        const minLeg = amt < otherAmt ? amt : otherAmt;
+        const tPair = Math.max(timeMs(r), timeMs(rj));
+        const lastPairAt = interestLastPairedAt.get(counterparty);
         if (maxLeg > pairMaxForWallet) {
           bestJ = -1;
-        } else if (dayKey(r) === "" || dayKey(r) !== dayKey(rj)) {
+        } else if (minLeg < MIN_INTEREST_LEG_RAW) {
           bestJ = -1;
-        } else if (interestDayUsed.has(`${counterparty}|${dayKey(r)}`)) {
+        } else if (
+          Number.isFinite(lastPairAt) &&
+          tPair - lastPairAt < INTEREST_COOLDOWN_MS
+        ) {
           bestJ = -1;
         } else if (MAX_FEE_BPS > 0n && maxLeg > 0n) {
           const diff = absDiff(r.amount_raw, rj.amount_raw);
@@ -309,7 +322,7 @@ async function replaceClassifications(rows, walletApproxMap = new Map()) {
         const fee = String(absDiff(r.amount_raw, rj.amount_raw));
         inserts.push([r.id, counterparty, "interest", rj.id, fee, RULE, 85]);
         inserts.push([rj.id, counterparty, "interest", r.id, fee, RULE, 85]);
-        interestDayUsed.add(`${counterparty}|${dayKey(r)}`);
+        interestLastPairedAt.set(counterparty, Math.max(timeMs(r), timeMs(rj)));
         used.add(i);
         used.add(bestJ);
       } else {

@@ -36,6 +36,8 @@ export const config = {
   /** Non utilisé par classify.mjs (v1 pair-only) ; conservé pour compat .env existants. */
   interestSmallMaxRaw: BigInt(req("INTEREST_SMALL_MAX_RAW", "1000000000000000000")),
   pairWindowSeconds: Number(req("PAIR_WINDOW_SECONDS", "300")),
+  /** Jambe minimale pour considérer une paire interest (ex: 0.01 token -> 1e16). */
+  interestMinLegRaw: BigInt(req("INTEREST_MIN_LEG_RAW", "10000000000000000")),
   /** Si une jambe de la paire IN/OUT dépasse ce montant (wei), pas de paire « interest » → payment / top_up. */
   interestPairMaxRaw: BigInt(req("INTEREST_PAIR_MAX_RAW", "50000000000000000000")),
   /**
