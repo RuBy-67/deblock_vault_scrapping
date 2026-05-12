@@ -17,7 +17,7 @@ declare(strict_types=1);
 /** @var string $vaultApproxBizRaw */
 /** @var string $netChainRaw */
 /** @var string $reconciliationGapRaw */
-/** @var array<string, mixed> $feeRow */
+/** @var array<string, mixed> $feeRow fee_charged_sum_raw, interest_compensated_sum_raw, fee_sum_raw (= somme des écarts sur paires interest) */
 /** @var array<string, mixed> $gasRow */
 /** @var string $counterparty */
 ?>
@@ -73,7 +73,9 @@ $avgGasEthByTxCard = $nTxCard > 0 ? ($gasEthTotalCard / $nTxCard) : 0.0;
   </div>
   <div class="card">
     <h3>Coûts période</h3>
-    <p class="metric-one-line"><span class="metric-inline-label">Deblock (estimation, frais prelevés sur le jeton)</span><br><strong><?= htmlspecialchars(fmt_eur((string) ($feeRow['fee_sum_raw'] ?? '0'))) ?></strong></p>
+    <p class="metric-one-line"><span class="metric-inline-label">Frais jeton estimés (vers noeud &gt; retour, même paire interest)</span><br><strong><?= htmlspecialchars(fmt_eur((string) ($feeRow['fee_charged_sum_raw'] ?? '0'))) ?></strong></p>
+    <p class="metric-one-line" style="margin-top:0.35rem"><span class="metric-inline-label">Intérêt compensé estimé (retour &gt; vers noeud — écart payé côté Deblock)</span><br><strong><?= htmlspecialchars(fmt_eur((string) ($feeRow['interest_compensated_sum_raw'] ?? '0'))) ?></strong></p>
+    <p class="muted metric-foot" style="margin-top:0.35rem">Écart absolu total sur ces paires : <?= htmlspecialchars(fmt_eur((string) ($feeRow['fee_sum_raw'] ?? '0'))) ?> (somme des deux lignes ; heuristique v1, pas montant on-chain libellé).</p>
     <dl class="metric-pair metric-pair--2col" style="margin-top:0.5rem">
       <div>
         <dt>Gas (ETH)</dt>

@@ -202,24 +202,36 @@ GROUP BY ce.event_type
 
     $sqlFees = "
 SELECT
-  COALESCE(SUM(x.fee_raw), 0) AS fee_sum_raw
+  COALESCE(SUM(x.fee_charged_raw), 0) AS fee_charged_sum_raw,
+  COALESCE(SUM(x.interest_compensated_raw), 0) AS interest_compensated_sum_raw,
+  COALESCE(SUM(x.fee_charged_raw + x.interest_compensated_raw), 0) AS fee_sum_raw
 FROM (
-  SELECT CAST(NULLIF(ce.fee_token_raw, '') AS DECIMAL(65,0)) AS fee_raw
-  FROM raw_transfers rt
-  JOIN classified_events ce ON ce.raw_transfer_id = rt.id
-  WHERE $w
-    AND ce.fee_token_raw IS NOT NULL
-    AND (
-      ce.paired_transfer_id IS NULL
-      OR ce.raw_transfer_id < ce.paired_transfer_id
-    )
-    $cpSql
-    $excludeZeroPeerSql
+  SELECT
+    CASE WHEN legs.in_leg > legs.out_leg THEN legs.in_leg - legs.out_leg ELSE 0 END AS fee_charged_raw,
+    CASE WHEN legs.out_leg > legs.in_leg THEN legs.out_leg - legs.in_leg ELSE 0 END AS interest_compensated_raw
+  FROM (
+    SELECT
+      CASE WHEN rt.direction = 'in' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE CAST(rt_p.amount_raw AS DECIMAL(65,0)) END AS in_leg,
+      CASE WHEN rt.direction = 'out' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE CAST(rt_p.amount_raw AS DECIMAL(65,0)) END AS out_leg
+    FROM raw_transfers rt
+    JOIN classified_events ce ON ce.raw_transfer_id = rt.id
+    JOIN raw_transfers rt_p ON rt_p.id = ce.paired_transfer_id
+    WHERE $w
+      AND ce.event_type = 'interest'
+      AND ce.paired_transfer_id IS NOT NULL
+      AND ce.fee_token_raw IS NOT NULL
+      AND ce.raw_transfer_id < ce.paired_transfer_id
+      $cpSql
+      $excludeZeroPeerSql
+  ) legs
 ) x
 ";
     $st3 = $pdo->prepare($sqlFees);
     $st3->execute($params);
     $feeRow = $st3->fetch() ?: [];
+    $feeRow['fee_sum_raw'] = normalize_amount_raw($feeRow['fee_sum_raw'] ?? '0');
+    $feeRow['fee_charged_sum_raw'] = normalize_amount_raw($feeRow['fee_charged_sum_raw'] ?? '0');
+    $feeRow['interest_compensated_sum_raw'] = normalize_amount_raw($feeRow['interest_compensated_sum_raw'] ?? '0');
 
     $sqlGas = "
 SELECT COALESCE(SUM(tg.cost_eth), 0) AS gas_eth
@@ -1522,23 +1534,32 @@ ORDER BY day ASC
 
     $sqlFees = "
 SELECT
-  COALESCE(SUM(x.fee_raw), 0) AS fee_sum_raw
+  COALESCE(SUM(x.fee_charged_raw), 0) AS fee_charged_sum_raw,
+  COALESCE(SUM(x.interest_compensated_raw), 0) AS interest_compensated_sum_raw,
+  COALESCE(SUM(x.fee_charged_raw + x.interest_compensated_raw), 0) AS fee_sum_raw
 FROM (
-  SELECT CAST(NULLIF(ce.fee_token_raw, '') AS DECIMAL(65,0)) AS fee_raw
-  FROM raw_transfers rt
-  JOIN classified_events ce ON ce.raw_transfer_id = rt.id
-  WHERE 1=1
+  SELECT
+    CASE WHEN legs.in_leg > legs.out_leg THEN legs.in_leg - legs.out_leg ELSE 0 END AS fee_charged_raw,
+    CASE WHEN legs.out_leg > legs.in_leg THEN legs.out_leg - legs.in_leg ELSE 0 END AS interest_compensated_raw
+  FROM (
+    SELECT
+      CASE WHEN rt.direction = 'in' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE CAST(rt_p.amount_raw AS DECIMAL(65,0)) END AS in_leg,
+      CASE WHEN rt.direction = 'out' THEN CAST(rt.amount_raw AS DECIMAL(65,0)) ELSE CAST(rt_p.amount_raw AS DECIMAL(65,0)) END AS out_leg
+    FROM raw_transfers rt
+    JOIN classified_events ce ON ce.raw_transfer_id = rt.id
+    JOIN raw_transfers rt_p ON rt_p.id = ce.paired_transfer_id
+    WHERE 1=1
     " . (($f['dateFrom'] ?? '') !== '' ? " AND rt.block_time >= ? " : "") . "
     " . (($f['dateTo'] ?? '') !== '' ? " AND rt.block_time <= ? " : "") . "
     AND NOT (
       (rt.direction = 'in'  AND rt.from_addr = '0x0000000000000000000000000000000000000000')
       OR (rt.direction = 'out' AND rt.to_addr = '0x0000000000000000000000000000000000000000')
     )
-    AND ce.fee_token_raw IS NOT NULL
-    AND (
-      ce.paired_transfer_id IS NULL
-      OR ce.raw_transfer_id < ce.paired_transfer_id
-    )
+      AND ce.event_type = 'interest'
+      AND ce.paired_transfer_id IS NOT NULL
+      AND ce.fee_token_raw IS NOT NULL
+      AND ce.raw_transfer_id < ce.paired_transfer_id
+  ) legs
 ) x
 ";
     $feeParams = [];
@@ -1787,7 +1808,11 @@ WHERE rt.block_time >= ?
         'counterparty' => '',
         'flux' => ['n_tx' => $nTxAllRaw],
         'byType' => $byType,
-        'feeRow' => ['fee_sum_raw' => normalize_amount_raw($feeRowAgg['fee_sum_raw'] ?? '0')],
+        'feeRow' => [
+            'fee_sum_raw' => normalize_amount_raw($feeRowAgg['fee_sum_raw'] ?? '0'),
+            'fee_charged_sum_raw' => normalize_amount_raw($feeRowAgg['fee_charged_sum_raw'] ?? '0'),
+            'interest_compensated_sum_raw' => normalize_amount_raw($feeRowAgg['interest_compensated_sum_raw'] ?? '0'),
+        ],
         'gasRow' => ['gas_eth' => $gasEthTotal],
         'inTotalRaw' => $inTotalRaw,
         'outTotalRaw' => $outTotalRaw,
